@@ -279,12 +279,6 @@ impl ToolWindow {
                 }
             }
         }
-
-        let min_rect = window_ui.min_rect();
-        let min_size = min_rect.size();
-
-        trace!("min_rect: {:?}, min_size: {:?}", min_rect, min_size);
-
         collapsing_state.store(&ctx);
     }
 
