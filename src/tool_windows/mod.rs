@@ -2,8 +2,8 @@ use std::hash::Hash;
 
 use egui::collapsing_header::CollapsingState;
 use egui::{
-    Align, Color32, Context, CornerRadius, CursorIcon, Frame, Id, Layout, Pos2, Rect, Sense, Stroke, StrokeKind, Ui,
-    UiBuilder, Vec2, Vec2b, vec2,
+    Align, Color32, Context, CornerRadius, CursorIcon, Frame, Id, Layout, Pos2, Rect, Sense, Style,
+    Ui, UiBuilder, Vec2, Vec2b, vec2,
 };
 use log::trace;
 
@@ -36,8 +36,6 @@ impl ToolWindow {
         let position_margin = 16.0;
 
         let header_color = visuals.widgets.open.weak_bg_fill;
-        let background_color = visuals.window_fill;
-        let border_color = visuals.window_stroke.color;
         let resize_corner_size = ui.visuals().resize_corner_size;
         let min_size = vec2(100.0, title_bar_height);
 
@@ -69,7 +67,7 @@ impl ToolWindow {
 
         let corner_radius = CornerRadius::same(6);
 
-        let input_response = ui.interact(rect, self.id.with("tool_window_input"), Sense::all());
+        let input_response = ui.interact(rect, self.id.with("tool_window_input"), Sense::click_and_drag());
 
         if input_response.clicked() {
             trace!(
@@ -170,13 +168,20 @@ impl ToolWindow {
         );
 
         //
-        // now draw the window
+        // draw the window frame
         //
 
         let painter = ui.painter().clone();
-        let border_stroke = Stroke::new(1.0, border_color);
-        painter.rect_filled(rect, corner_radius, background_color);
-        painter.rect_stroke(rect, corner_radius, border_stroke, StrokeKind::Inside);
+
+        let frame = Frame::window(&Style::default())
+            .inner_margin(egui::Margin::symmetric(inner_margin, inner_margin))
+            .outer_margin(egui::Margin::symmetric(outer_margin, outer_margin));
+        let shape = frame.paint(rect);
+        painter.add(shape);
+
+        //
+        // draw the window content
+        //
 
         let window_id = id.with("child_id");
         let mut window_ui = Ui::new(
@@ -195,6 +200,9 @@ impl ToolWindow {
         {
             let ui = &mut window_ui;
 
+            //
+            // draw the title bar
+            //
             let title_bar_rect = Rect::from_min_size(rect.min, vec2(rect.width(), title_bar_height + border_adjust.y));
             debug_rect(ui, title_bar_rect, Color32::GREEN);
 
@@ -258,6 +266,10 @@ impl ToolWindow {
                     self.state.position = drag_state.initial_drag_position + delta;
                 }
             }
+
+            //
+            // draw the content and resize corner
+            //
 
             if !self.state.collapsed {
                 content_fn(ui);
