@@ -75,8 +75,8 @@ impl ToolWindow {
         debug_rect(ui, ui_clip_rect, Color32::BLUE);
 
         let available = Vec2::new(
-            ui_clip_rect.width() - position_margin,
-            ui_clip_rect.height() - position_margin,
+            (ui_clip_rect.width() - position_margin).max(position_margin),
+            (ui_clip_rect.height() - position_margin).max(position_margin),
         );
 
         Self::clamp_offset(available, &mut self.state.position);
