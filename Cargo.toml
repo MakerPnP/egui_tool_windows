@@ -1,0 +1,14 @@
+[package]
+name = "egui_tool_windows"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+# enable to see layout debugging information
+layout_debugging = []
+
+[dependencies]
+egui = { version = "0.31.1" }
+
+# Logging
+log = "0.4"
