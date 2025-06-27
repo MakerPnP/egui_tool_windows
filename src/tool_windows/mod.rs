@@ -456,7 +456,7 @@ impl ToolWindowsState {
         self.rendering_stack
             .retain(|&stack_id| stack_id != id);
         self.rendering_stack.push(id);
-        println!("new rendering_stack: {:?}", self.rendering_stack);
+        trace!("new rendering_stack: {:?}", self.rendering_stack);
     }
 }
 
@@ -518,9 +518,9 @@ impl ToolWindows {
                         .find(|(id, ..)| id == seen_id)
                         .is_some();
                     if retain {
-                        println!("Retained window. id: {:?}", seen_id);
+                        trace!("Retained window. id: {:?}", seen_id);
                     } else {
-                        println!("Removing window. id: {:?}", seen_id);
+                        trace!("Removing window. id: {:?}", seen_id);
                     }
                     retain
                 });
@@ -532,7 +532,7 @@ impl ToolWindows {
                     .rendering_stack
                     .contains(&id)
                 {
-                    println!("adding new window. id: {:?}", id);
+                    trace!("adding new window. id: {:?}", id);
                     state_persistence
                         .state
                         .rendering_stack
@@ -555,7 +555,7 @@ impl ToolWindows {
             .clone();
         for id in rendering_order {
             if let Some((params, content_fn)) = windows_map.remove(&id) {
-                println!("rendering window: {:?}", id);
+                trace!("rendering window: {:?}", id);
 
                 ToolWindowBuilder::new(id)
                     .default_pos([50.0, 50.0])
