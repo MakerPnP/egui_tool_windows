@@ -1,0 +1,11 @@
+[attr]rust text eol=auto whitespace=tab-in-indent,trailing-space,tabwidth=4
+
+*.md text=auto
+*.toml text=auto
+*.rs rust diff=rust
+Cargo.lock linguist-generated=false
+.gitattributes text=auto
+.gitignore text=auto
+
+*.png binary
+*.ico binary
