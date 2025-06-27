@@ -5,6 +5,9 @@ use egui_tool_windows::ToolWindows;
 use shared::ExampleWindowState;
 
 fn main() -> eframe::Result<()> {
+    // run with `RUST_LOG=egui_tool_windows=trace` to see trace logs
+    env_logger::init();
+    
     let native_options = eframe::NativeOptions {
         viewport: ViewportBuilder::default().with_inner_size([1027.0, 768.0]),
         ..Default::default()
