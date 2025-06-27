@@ -56,16 +56,16 @@ impl eframe::App for MyApp {
                                 .windows(ui, |builder|{
                                     builder
                                         .add_window("table_tool_window_1")
-                                        //.default_pos([50.0, 50.0])
-                                        //.default_size([400.0, 300.0])
+                                        .default_pos([50.0, 50.0])
+                                        .default_size([400.0, 300.0])
                                         .show("Example table 1 (drag or collapse me)".to_string(), |ui| {
                                             shared::draw_table(ui, "table_1");
                                         });
 
                                     builder
                                         .add_window("table_tool_window_2")
-                                        //.default_pos([100.0, 100.0])
-                                        //.default_size([400.0, 300.0])
+                                        .default_pos([100.0, 100.0])
+                                        .default_size([400.0, 300.0])
                                         .show("Example table 2 (drag or collapse me) - very very long title".to_string(), {
                                             let example_state_arc = self.example_state.clone();
 

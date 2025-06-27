@@ -7,36 +7,6 @@ use egui::{
 };
 use log::trace;
 
-pub struct ToolWindowBuilder {
-    id: Id,
-    default_pos: Pos2,
-    default_size: Vec2,
-}
-
-impl ToolWindowBuilder {
-    #[inline]
-    pub fn default_pos(mut self, default_pos: impl Into<Pos2>) -> Self {
-        self.default_pos = default_pos.into();
-        self
-    }
-
-    #[inline]
-    pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
-        self.default_size = default_size.into();
-        self
-    }
-}
-
-impl ToolWindowBuilder {
-    pub fn new(id: Id) -> Self {
-        Self {
-            id,
-            default_pos: Pos2::ZERO,
-            default_size: Vec2::new(200.0, 100.0),
-        }
-    }
-}
-
 struct ToolWindow {
     id: Id,
     state: ToolWindowState,
@@ -343,7 +313,7 @@ impl Default for ToolWindowState {
 }
 
 impl ToolWindow {
-    pub fn load_or_create_from_builder(ctx: &Context, id: Id, builder: &ToolWindowBuilder) -> Self {
+    pub fn load_or_create_from_params(ctx: &Context, id: Id, builder: &ToolWindowParameters) -> Self {
         Self::load(ctx, id).unwrap_or({
             Self {
                 id,
@@ -368,20 +338,6 @@ impl ToolWindow {
 
     pub fn store(&self, ctx: &Context) {
         ctx.data_mut(|d| d.insert_persisted(self.id, self.state.clone()));
-    }
-}
-
-impl ToolWindowBuilder {
-    pub fn show<F>(self, ui: &mut Ui, title: String, content_fn: F, state: &mut ToolWindowsState)
-    where
-        F: FnOnce(&mut Ui),
-    {
-        let ctx = ui.ctx().clone();
-        let mut tool_window = ToolWindow::load_or_create_from_builder(&ctx, self.id, &self);
-        ui.push_id(self.id.with("__tool_window"), |ui| {
-            tool_window.show(ui, title, content_fn, state);
-        });
-        tool_window.store(&ctx);
     }
 }
 
@@ -557,10 +513,12 @@ impl ToolWindows {
             if let Some((params, content_fn)) = windows_map.remove(&id) {
                 trace!("rendering window: {:?}", id);
 
-                ToolWindowBuilder::new(id)
-                    .default_pos([50.0, 50.0])
-                    .default_size([400.0, 300.0])
-                    .show(ui, params.title, content_fn, &mut state_persistence.state);
+                let ctx = ui.ctx().clone();
+                let mut tool_window = ToolWindow::load_or_create_from_params(&ctx, id, &params);
+                ui.push_id(id.with("__tool_window"), |ui| {
+                    tool_window.show(ui, params.title, content_fn, &mut state_persistence.state);
+                });
+                tool_window.store(&ctx);
             }
         }
 
@@ -593,9 +551,23 @@ pub struct ToolWindowInstanceBuilder<'a> {
 #[derive(Default, Debug)]
 pub struct ToolWindowParameters {
     title: String,
+    default_pos: Pos2,
+    default_size: Vec2,
 }
 
 impl<'a> ToolWindowInstanceBuilder<'a> {
+    #[inline]
+    pub fn default_pos(mut self, pos: impl Into<Pos2>) -> Self {
+        self.params.default_pos = pos.into();
+        self
+    }
+
+    #[inline]
+    pub fn default_size(mut self, default_size: impl Into<Vec2>) -> Self {
+        self.params.default_size = default_size.into();
+        self
+    }
+
     pub fn show<F>(mut self, title: String, content_fn: F)
     where
         F: FnOnce(&mut Ui) + 'static,
