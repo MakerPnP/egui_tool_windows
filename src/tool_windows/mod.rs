@@ -306,21 +306,25 @@ impl ToolWindow {
                     });
                 });
 
-            if title_bar_response.drag_started() {
-                self.state.drag_state = Some(DragState {
-                    drag_pivot: title_bar_response
-                        .interact_pointer_pos()
-                        .unwrap_or(self.state.position),
-                    initial_drag_position: self.state.position,
-                })
-            } else if title_bar_response.drag_stopped() {
-                self.state.drag_state = None;
-            }
+            // FIXME again, due to z-ordering, it's possible to drag a window from it's title when the title is obscured
+            //       so to work around this only permit top-most windows to be dragged.
+            if is_topmost {
+                if title_bar_response.drag_started() {
+                    self.state.drag_state = Some(DragState {
+                        drag_pivot: title_bar_response
+                            .interact_pointer_pos()
+                            .unwrap_or(self.state.position),
+                        initial_drag_position: self.state.position,
+                    })
+                } else if title_bar_response.drag_stopped() {
+                    self.state.drag_state = None;
+                }
 
-            if let Some(drag_state) = &self.state.drag_state {
-                if let Some(pos) = ctx.input(|i| i.pointer.interact_pos()) {
-                    let delta = pos - drag_state.drag_pivot;
-                    self.state.position = drag_state.initial_drag_position + delta;
+                if let Some(drag_state) = &self.state.drag_state {
+                    if let Some(pos) = ctx.input(|i| i.pointer.interact_pos()) {
+                        let delta = pos - drag_state.drag_pivot;
+                        self.state.position = drag_state.initial_drag_position + delta;
+                    }
                 }
             }
 

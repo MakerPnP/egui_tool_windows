@@ -64,8 +64,11 @@ This crate is work-in-progress, but usable, see below.
 * The goal is to allow them to be used *inside* `egui::Area` and `egui::Window` instances, and by extension, with `egui_dock`
   windows that but this doesn't work, yet.  The content is present, but obscured.
 * If one window obscures another, hovering of elements in the obscured window 'bleeds-though'.  e.g. if there's a table 
- with resizable columns obscured by another tool window, when you hover over the obscured column divider the mouse
- pointer changes and allows obscured columns to be resized, when it should not.
+  with resizable columns obscured by another tool window, when you hover over the obscured column divider the mouse
+  pointer changes and allows obscured columns to be resized, when it should not.
+* Due to similar bleed-though of egui sense due to lack of z-ordering, non-top-most tool windows cannot be resized or
+  dragged; you have to click the window first.  there are visual cues for top-most tool windows however.
+  It's perfectly usable, but not ideal.
 
 So currently, if what you want to put in tool windows isn't affected by the current limitations, then this is usable
 right now for you.
@@ -99,6 +102,18 @@ Available under APACHE *or* MIT licenses.
 ## Authors
 
 * Dominic Clifton - Project founder and primary maintainer.
+
+## Changelog
+
+### 0.1.0
+
+First release
+
+### 0.1.1
+
+ - Changed - Usability improvements.
+ - New - API improvements for `default_size` and `default_pos`.
+ - Fixed - Not being able to bring a tool window to the front by clicking in its title-bar.  
 
 ## Timeline
 
