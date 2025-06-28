@@ -2,8 +2,8 @@ use std::hash::Hash;
 
 use egui::collapsing_header::CollapsingState;
 use egui::{
-    Align, Color32, Context, CornerRadius, CursorIcon, Frame, Id, Layout, Pos2, Rect, Sense, Style,
-    Ui, UiBuilder, Vec2, Vec2b, vec2,
+    Align, Color32, Context, CornerRadius, CursorIcon, Frame, Id, Layout, Pos2, Rect, Sense, Style, Ui, UiBuilder,
+    Vec2, Vec2b, vec2,
 };
 use log::trace;
 
@@ -67,15 +67,22 @@ impl ToolWindow {
 
         let corner_radius = CornerRadius::same(6);
 
-        let input_response = ui.interact(rect, self.id.with("tool_window_input"), Sense::click_and_drag());
-
-        if input_response.clicked() {
-            trace!(
-                "clicked, id: {:?}, rendering_stack: {:?}",
-                self.id, state.rendering_stack
-            );
-            let id = self.id;
-            state.bring_to_front(id);
+        if false {
+            // FIXME if this block is done before the title_bar_response is created, then `clicked #1` is never printed when clicking in the title bar
+            //       but the title bar has not been created yet, why?
+            //       if you add a return statement after the `if ... clicked()` block below, then you can see that the `clicked #1` is printed.
+            //       also, the label UNDER the window in the `simple` demo is selectable when a) this block is enabled, even though we later obscure it and b) the cursor is
+            //       positioned below the title bar.
+            let input_response = ui.interact(rect, self.id.with("tool_window_input"), Sense::click());
+            if input_response.clicked() {
+                trace!(
+                    "clicked #1, id: {:?}, rendering_stack: {:?}",
+                    self.id, state.rendering_stack
+                );
+                let id = self.id;
+                state.bring_to_front(id);
+            }
+            // return; // FIXME uncomment this to see the `clicked #1` trace as above (use `layout_debugging` feature to see the rects so you know where to click)
         }
 
         let edges = [
@@ -215,13 +222,49 @@ impl ToolWindow {
                     .sense(Sense::click_and_drag())
                     .layout(Layout::top_down(Align::Min)),
             );
-            title_bar_rect_ui.set_clip_rect(title_bar_rect.intersect(ui_clip_rect));
+
+            let title_bar_ui_rect = title_bar_rect.intersect(ui_clip_rect);
+            debug_rect(ui, title_bar_ui_rect, Color32::MAGENTA);
+            title_bar_rect_ui.set_clip_rect(title_bar_ui_rect);
 
             let title_bar_response = title_bar_rect_ui.interact(
                 title_bar_rect,
                 title_bar_rect_id.with("__sense"),
                 Sense::click_and_drag(),
             );
+
+            if title_bar_response.clicked() {
+                // FIXME this is never printed, if the FIXME block at around line 70 is enabled why?
+                //       the response comes from title_bar_rect_ui.interact with Sense::click_and_drag()
+                trace!("title bar clicked #1");
+            }
+
+            if title_bar_rect_ui.response().clicked() {
+                // FIXME this is never printed either, why?
+                //       the response comes from title_bar_rect_ui which is created with a builder that calls .sense(Sense::click_and_drag())
+                trace!("title bar clicked #2");
+            }
+
+            {
+                // FIXME if this block is done before the title_bar_response is created, then `clicked #2` is never printed when clicking the title bar.
+                let input_response = ui.interact(rect, self.id.with("tool_window_input"), Sense::click());
+
+                if input_response.clicked() {
+                    trace!(
+                        "clicked #2, id: {:?}, rendering_stack: {:?}",
+                        self.id, state.rendering_stack
+                    );
+                    let id = self.id;
+                    state.bring_to_front(id);
+                }
+            }
+
+            // FIXME the current combination of FIXME's and code allows the title bar, and the content to be clicked
+            //       and have the window be brought to the front.
+            //       and allows title bar drags to work (handled below)
+            //       however, it's unknown why the behavior is so unpredictable
+            //       there was a LOT of trial and error and debugging to get this to work, and why it does is a mystery.
+            // FIXME there is a considerable amount of temporal coupling in this method!
 
             let mut title_bar_rounding = corner_radius;
 
