@@ -20,6 +20,8 @@ impl ToolWindow {
         content_fn: impl FnOnce(&mut Ui) + Sized,
         state: &mut ToolWindowsState,
     ) {
+        let is_topmost = state.is_topmost(self.id);
+
         let ctx = ui.ctx().clone();
         let id = ui.make_persistent_id(
             self.id
@@ -35,7 +37,6 @@ impl ToolWindow {
         let edge_thickness = 4.0;
         let position_margin = 16.0;
 
-        let header_color = visuals.widgets.open.weak_bg_fill;
         let resize_corner_size = ui.visuals().resize_corner_size;
         let min_size = vec2(100.0, title_bar_height);
 
@@ -85,94 +86,101 @@ impl ToolWindow {
             // return; // FIXME uncomment this to see the `clicked #1` trace as above (use `layout_debugging` feature to see the rects so you know where to click)
         }
 
-        let edges = [
-            (
-                "left",
-                Rect::from_min_max(rect.left_top(), rect.left_bottom()).expand2(vec2(edge_thickness, 0.0)),
-            ),
-            ("right", {
-                let mut max = rect.right_bottom();
-                max.y -= resize_corner_size;
-                Rect::from_min_max(rect.right_top(), max).expand2(vec2(edge_thickness, 0.0))
-            }),
-            (
-                "top",
-                Rect::from_min_max(rect.left_top(), rect.right_top()).expand2(vec2(0.0, edge_thickness)),
-            ),
-            ("bottom", {
-                let mut max = rect.right_bottom();
-                max.x -= resize_corner_size;
-                Rect::from_min_max(rect.left_bottom(), max).expand2(vec2(0.0, edge_thickness))
-            }),
-        ];
+        let mut corner_response = None;
+        // FIXME currently, due to lack of proper z-ordering we need to avoid showing resize handles for non-topmost windows
+        //       this also means, when a tool window is not partially obscured, you have to click it before you can resize it.
+        //       there are visual cues when a window is top-most, it's header is highlighted, and the corner resize handles are shown.
+        if is_topmost {
+            let edges = [
+                (
+                    "left",
+                    Rect::from_min_max(rect.left_top(), rect.left_bottom()).expand2(vec2(edge_thickness, 0.0)),
+                ),
+                ("right", {
+                    let mut max = rect.right_bottom();
+                    max.y -= resize_corner_size;
+                    Rect::from_min_max(rect.right_top(), max).expand2(vec2(edge_thickness, 0.0))
+                }),
+                (
+                    "top",
+                    Rect::from_min_max(rect.left_top(), rect.right_top()).expand2(vec2(0.0, edge_thickness)),
+                ),
+                ("bottom", {
+                    let mut max = rect.right_bottom();
+                    max.x -= resize_corner_size;
+                    Rect::from_min_max(rect.left_bottom(), max).expand2(vec2(0.0, edge_thickness))
+                }),
+            ];
 
-        for (edge, edge_rect) in edges {
-            debug_rect(ui, edge_rect, Color32::ORANGE);
+            for (edge, edge_rect) in edges {
+                debug_rect(ui, edge_rect, Color32::ORANGE);
 
-            let resp = ui.interact(edge_rect, id.with(edge), Sense::drag());
+                let resp = ui.interact(edge_rect, id.with(edge), Sense::drag());
 
-            if resp.hovered() {
-                match edge {
-                    "left" | "right" => ctx.set_cursor_icon(CursorIcon::ResizeHorizontal),
-                    "top" | "bottom" => ctx.set_cursor_icon(CursorIcon::ResizeVertical),
-                    _ => {}
+                if resp.hovered() {
+                    match edge {
+                        "left" | "right" => ctx.set_cursor_icon(CursorIcon::ResizeHorizontal),
+                        "top" | "bottom" => ctx.set_cursor_icon(CursorIcon::ResizeVertical),
+                        _ => {}
+                    }
+                }
+
+                if resp.dragged() {
+                    match edge {
+                        "left" => {
+                            resize_delta.x -= resp.drag_delta().x;
+                            self.state.position.x += resp.drag_delta().x;
+                        }
+                        "right" => resize_delta.x += resp.drag_delta().x,
+                        "top" => {
+                            resize_delta.y -= resp.drag_delta().y;
+                            self.state.position.y += resp.drag_delta().y;
+                        }
+                        "bottom" => resize_delta.y += resp.drag_delta().y,
+                        _ => {}
+                    }
                 }
             }
 
-            if resp.dragged() {
-                match edge {
-                    "left" => {
-                        resize_delta.x -= resp.drag_delta().x;
-                        self.state.position.x += resp.drag_delta().x;
-                    }
-                    "right" => resize_delta.x += resp.drag_delta().x,
-                    "top" => {
-                        resize_delta.y -= resp.drag_delta().y;
-                        self.state.position.y += resp.drag_delta().y;
-                    }
-                    "bottom" => resize_delta.y += resp.drag_delta().y,
-                    _ => {}
+            let corner_id = self
+                .state
+                .resizable
+                .any()
+                .then(|| id.with("__resize_corner"));
+
+            corner_response = if let Some(corner_id) = corner_id {
+                let corner_size = Vec2::splat(resize_corner_size);
+                let corner_rect =
+                    egui::Rect::from_min_size(rect.right_bottom() - corner_size - border_adjust, corner_size);
+                debug_rect(ui, corner_rect, Color32::ORANGE);
+
+                Some(ui.interact(corner_rect, corner_id, Sense::drag()))
+            } else {
+                None
+            };
+
+            if let Some(corner_response) = &corner_response {
+                if corner_response.hovered() || corner_response.dragged() {
+                    ui.ctx()
+                        .set_cursor_icon(CursorIcon::ResizeNwSe);
+                }
+
+                if corner_response.dragged() {
+                    resize_delta += corner_response.drag_delta();
                 }
             }
-        }
 
-        let corner_id = self
-            .state
-            .resizable
-            .any()
-            .then(|| id.with("__resize_corner"));
-
-        let corner_response = if let Some(corner_id) = corner_id {
-            let corner_size = Vec2::splat(resize_corner_size);
-            let corner_rect = egui::Rect::from_min_size(rect.right_bottom() - corner_size - border_adjust, corner_size);
-            debug_rect(ui, corner_rect, Color32::ORANGE);
-
-            Some(ui.interact(corner_rect, corner_id, Sense::drag()))
-        } else {
-            None
-        };
-
-        if let Some(corner_response) = &corner_response {
-            if corner_response.hovered() || corner_response.dragged() {
-                ui.ctx()
-                    .set_cursor_icon(CursorIcon::ResizeNwSe);
+            if resize_delta != Vec2::ZERO {
+                self.state.size += resize_delta;
+                self.state.size.x = self.state.size.x.max(min_size.x);
+                self.state.size.y = self.state.size.y.max(min_size.y);
             }
 
-            if corner_response.dragged() {
-                resize_delta += corner_response.drag_delta();
-            }
+            trace!(
+                "position: {:?}, size: {:?}, resize_delta: {:?}",
+                self.state.position, self.state.size, resize_delta
+            );
         }
-
-        if resize_delta != Vec2::ZERO {
-            self.state.size += resize_delta;
-            self.state.size.x = self.state.size.x.max(min_size.x);
-            self.state.size.y = self.state.size.y.max(min_size.y);
-        }
-
-        trace!(
-            "position: {:?}, size: {:?}, resize_delta: {:?}",
-            self.state.position, self.state.size, resize_delta
-        );
 
         //
         // draw the window frame
@@ -273,7 +281,13 @@ impl ToolWindow {
                 title_bar_rounding.sw = 0;
             }
 
-            painter.rect_filled(title_bar_rect, title_bar_rounding, header_color);
+            let title_bar_color = if is_topmost {
+                visuals.widgets.active.bg_fill
+            } else {
+                visuals.widgets.open.bg_fill
+            };
+
+            painter.rect_filled(title_bar_rect, title_bar_rounding, title_bar_color);
 
             Frame::NONE
                 .inner_margin(egui::Margin::symmetric(inner_margin, inner_margin))
@@ -454,6 +468,12 @@ pub struct ToolWindowsStatePersistence {
 pub struct ToolWindowsState {
     /// The order in which windows are rendered, the LAST one appears on TOP, the FIRST one on BOTTOM.
     rendering_stack: Vec<Id>,
+}
+
+impl ToolWindowsState {
+    pub fn is_topmost(&self, id: Id) -> bool {
+        self.rendering_stack.last() == Some(&id)
+    }
 }
 
 impl ToolWindowsState {
