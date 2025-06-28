@@ -90,7 +90,7 @@ Refer to the `demos` folder.
 
 Here's a recent screenshot of the `simple` demo:
 
-[<img src="assets/screenshots/screenshot_2025-06-27_195402.png" width="800" alt="egui_tool_windows">](assets/screenshots/screenshot_2025-06-27_195402.png)
+[<img src="assets/screenshots/screenshot_2025-06-28_024126.png" width="800" alt="egui_tool_windows">](assets/screenshots/screenshot_2025-06-28_024126.png)
 
 ## License
 
@@ -112,6 +112,7 @@ First release
 ### 0.1.1
 
  - Changed - Usability improvements.
+ - New - Tool windows have visual shadows.
  - New - API improvements for `default_size` and `default_pos`.
  - Fixed - Not being able to bring a tool window to the front by clicking in its title-bar.  
 
