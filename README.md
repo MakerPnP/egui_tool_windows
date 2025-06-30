@@ -109,6 +109,10 @@ Available under APACHE *or* MIT licenses.
 
 ## Changelog
 
+### 0.1.3
+
+- New - Added a `persistence` feature, for use with the `egui` feature of the same name.
+
 ### 0.1.2
 
 - Fixed - Added support for rendering inside an `egui::Window`.
