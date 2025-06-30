@@ -20,5 +20,9 @@ jobs:
       run: sudo apt-get install -y libdbus-1-3 libdbus-1-dev
     - name: Build
       run: cargo build --verbose
+    - name: Run tests (no-default-features)
+      run: cargo test --verbose --no-default-features
     - name: Run tests
       run: cargo test --verbose
+    - name: Run tests (all features)
+      run: cargo test --verbose --all-features

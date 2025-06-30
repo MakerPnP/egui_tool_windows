@@ -354,12 +354,14 @@ impl ToolWindow {
 }
 
 #[derive(Clone)]
+#[cfg_attr(feature = "persistence", derive(serde::Serialize, serde::Deserialize))]
 struct DragState {
     drag_pivot: Pos2,
     initial_drag_position: Pos2,
 }
 
 #[derive(Clone)]
+#[cfg_attr(feature = "persistence", derive(serde::Serialize, serde::Deserialize))]
 struct ToolWindowState {
     collapsed: bool,
     position: Pos2,
@@ -473,6 +475,7 @@ pub struct ToolWindowsStatePersistence {
 }
 
 #[derive(Default, Clone)]
+#[cfg_attr(feature = "persistence", derive(serde::Serialize, serde::Deserialize))]
 pub struct ToolWindowsState {
     /// The order in which windows are rendered, the LAST one appears on TOP, the FIRST one on BOTTOM.
     rendering_stack: Vec<Id>,

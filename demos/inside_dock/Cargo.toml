@@ -9,7 +9,7 @@ eframe = { version = "0.31.1"}
 egui_extras = "0.31.1"
 egui_dock = "0.16.0"
 
-egui_tool_windows = { path = "../.." }
+egui_tool_windows = { path = "../..", features = ["persistence"] }
 shared = { path = "../shared" }
 
 # logging

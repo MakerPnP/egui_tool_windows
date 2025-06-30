@@ -26,8 +26,12 @@ include = [
 # enable to see layout debugging information
 layout_debugging = []
 
+# enable if you need to use the egui persistence feature.
+persistence = ["egui/persistence", "serde"]
+
 [dependencies]
 egui = { version = "0.31.1" }
+serde = { version = "1", optional = true}
 
 # Logging
 log = "0.4"
