@@ -23,7 +23,7 @@ Floating tool windows for egui that can be used in containers, like resize, scro
 * Clipped to the container.
 * Tool windows are moved if the container is resized too small.
 
-Regular egui::Window and egui::Area instances can be placed above them, they do no clash.
+Regular egui::Window and egui::Area instances can be placed above them, they do not clash.
 
 ## Basic API usage
 
@@ -61,8 +61,6 @@ This crate is work-in-progress, but usable, see below.
 
 ## Limitations
 
-* The goal is to allow them to be used *inside* `egui::Area` and `egui::Window` instances, and by extension, with `egui_dock`
-  windows that but this doesn't work, yet.  The content is present, but obscured.
 * If one window obscures another, hovering of elements in the obscured window 'bleeds-though'.  e.g. if there's a table 
   with resizable columns obscured by another tool window, when you hover over the obscured column divider the mouse
   pointer changes and allows obscured columns to be resized, when it should not.
@@ -79,18 +77,24 @@ Once the above issues are solved more attention will be given to additional plan
 
 ## Demos
 
-The crate contains 2 demos.
+The crate contains 3 demos.
 
 * `simple` - shows the current state and behavior of the tool windows when used in a container.
-* `inside_windows` - attempts to use the tool windows inside `egui::Window` instances - doesn't currently work correctly.
+* `inside_windows` - attempts to use the tool windows inside `egui::Window` instances.
+* `inside_dock` - attempts to use the tool windows inside an `egui_dock`, when the tabs are popped out `egui::Window`
+  instances are used.  This is most complicated scenario.
 
 Refer to the `demos` folder.
 
-## Screenshot
+## Screenshots
 
 Here's a recent screenshot of the `simple` demo:
 
-[<img src="assets/screenshots/screenshot_2025-06-28_024126.png" width="800" alt="egui_tool_windows">](assets/screenshots/screenshot_2025-06-28_024126.png)
+[<img src="assets/screenshots/screenshot_2025-06-30_134420.png" width="800" alt="egui_tool_windows">](assets/screenshots/screenshot_2025-06-30_134420.png)
+
+Here's a recent screenshot of the `inside_dock` demo:
+
+[<img src="assets/screenshots/screenshot_2025-06-30_134420.png" width="800" alt="egui_tool_windows">](assets/screenshots/screenshot_2025-06-30_134420.png)
 
 ## License
 
@@ -105,16 +109,21 @@ Available under APACHE *or* MIT licenses.
 
 ## Changelog
 
-### 0.1.0
+### 0.1.2
 
-First release
+- Fixed - Added support for rendering inside an `egui::Window`.
+- New - Added a an `inside_dock` example.
 
 ### 0.1.1
 
- - Changed - Usability improvements.
- - New - Tool windows have visual shadows.
- - New - API improvements for `default_size` and `default_pos`.
- - Fixed - Not being able to bring a tool window to the front by clicking in its title-bar.  
+- Changed - Usability improvements.
+- New - Tool windows have visual shadows.
+- New - API improvements for `default_size` and `default_pos`.
+- Fixed - Not being able to bring a tool window to the front by clicking in its title-bar.
+
+### 0.1.0
+
+First release
 
 ## Timeline
 

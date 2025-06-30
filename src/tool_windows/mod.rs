@@ -186,7 +186,9 @@ impl ToolWindow {
         // draw the window frame
         //
 
-        let painter = ui.painter().clone();
+        let layer_id = ui.layer_id();
+        let mut painter = ctx.layer_painter(layer_id);
+        painter.set_clip_rect(ui.clip_rect());
 
         let frame = Frame::window(&Style::default())
             .inner_margin(egui::Margin::symmetric(inner_margin, inner_margin))
@@ -203,6 +205,7 @@ impl ToolWindow {
             ctx.clone(),
             window_id,
             UiBuilder::new()
+                .layer_id(layer_id)
                 .max_rect(rect)
                 .layout(Layout::top_down(Align::Min)),
         );
@@ -226,6 +229,7 @@ impl ToolWindow {
                 ctx.clone(),
                 title_bar_rect_id,
                 UiBuilder::new()
+                    .layer_id(layer_id)
                     .max_rect(title_bar_rect)
                     .sense(Sense::click_and_drag())
                     .layout(Layout::top_down(Align::Min)),
