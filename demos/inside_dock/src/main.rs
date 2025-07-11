@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 use egui::{CentralPanel, Id, ViewportBuilder};
 use egui::scroll_area::ScrollBarVisibility;
 use egui_dock::{DockArea, DockState, NodeIndex, Style};
+use egui_dock::egui::{Ui, WidgetText};
 use egui_tool_windows::ToolWindows;
 use shared::ExampleWindowState;
 
@@ -125,11 +126,11 @@ struct TabViewer {}
 impl egui_dock::TabViewer for TabViewer {
     type Tab = Tab;
 
-    fn title(&mut self, tab: &mut Self::Tab) -> egui::WidgetText {
+    fn title(&mut self, tab: &mut Self::Tab) -> WidgetText {
         (&*tab.name).into()
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, tab: &mut Self::Tab) {
+    fn ui(&mut self, ui: &mut Ui, tab: &mut Self::Tab) {
         ui.push_id(ui.id().with(tab.name), |ui|{
             tab.kind.ui(ui);
         });

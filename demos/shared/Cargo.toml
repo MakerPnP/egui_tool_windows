@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-egui = "0.31.1"
-egui_extras = "0.31.1"
+egui = "0.32.0"
+egui_extras = "0.32.0"

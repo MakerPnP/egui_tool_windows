@@ -30,7 +30,7 @@ layout_debugging = []
 persistence = ["egui/persistence", "serde"]
 
 [dependencies]
-egui = { version = "0.31.1" }
+egui = { version = "0.32.0" }
 serde = { version = "1", optional = true}
 
 # Logging
