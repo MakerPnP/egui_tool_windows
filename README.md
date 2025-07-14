@@ -109,6 +109,11 @@ Available under APACHE *or* MIT licenses.
 
 ## Changelog
 
+### 0.2.0
+
+- Add support for egui 0.32.0.
+- Update `inside_dock` example to use egui_dock 0.17
+
 ### 0.1.3
 
 - New - Added a `persistence` feature, for use with the `egui` feature of the same name.
