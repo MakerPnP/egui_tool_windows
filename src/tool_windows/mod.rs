@@ -612,7 +612,7 @@ pub struct ToolWindowsBuilder {
 }
 
 impl ToolWindowsBuilder {
-    pub fn add_window(&mut self, id_salt: impl Hash) -> ToolWindowInstanceBuilder {
+    pub fn add_window(&mut self, id_salt: impl Hash) -> ToolWindowInstanceBuilder<'_> {
         let id = Id::new(id_salt);
         ToolWindowInstanceBuilder {
             id,

@@ -4,10 +4,10 @@ version = "0.2.0"
 edition = "2024"
 
 [dependencies]
-egui = { version = "0.32.0", features = ["callstack"] }
-eframe = { version = "0.32.0"}
-egui_extras = "0.32.0"
-egui_dock = "0.17.0"
+egui = { version = "0.33.0", features = ["callstack"] }
+eframe = { version = "0.33.0"}
+egui_extras = "0.33.0"
+egui_dock = "0.18.0"
 
 egui_tool_windows = { path = "../..", features = ["persistence"] }
 shared = { path = "../shared" }
