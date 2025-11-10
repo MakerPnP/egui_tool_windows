@@ -1037,7 +1037,7 @@ dependencies = [
 
 [[package]]
 name = "egui_tool_windows"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "egui",
  "log",

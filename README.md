@@ -109,6 +109,10 @@ Available under APACHE *or* MIT licenses.
 
 ## Changelog
 
+### 0.3.0
+
+- Add support for egui 0.33.0.
+
 ### 0.2.0
 
 - Add support for egui 0.32.0.
