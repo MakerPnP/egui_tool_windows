@@ -1,4 +1,5 @@
 use std::hash::Hash;
+
 use egui::{RichText, Ui};
 use egui_extras::{Column, TableBuilder};
 
@@ -24,24 +25,29 @@ pub fn draw_example_window_contents_1(ui: &mut Ui, state: &mut ExampleWindowStat
 
         ui.label("This content is wrapped and clipped.");
     }
-    
-    if ui.toggle_value(&mut state.toggle, "Toggle me").changed() {
-        println!("Toggled!");   
+
+    if ui
+        .toggle_value(&mut state.toggle, "Toggle me")
+        .changed()
+    {
+        println!("Toggled!");
     };
-    
+
     if ui.button("Clickable button").clicked() {
         // Do something
         println!("Clicked!");
     }
-    
+
     ui.horizontal(|ui| {
         ui.label("drag me");
-        if ui.add(egui::DragValue::new(&mut state.number)).changed() {
+        if ui
+            .add(egui::DragValue::new(&mut state.number))
+            .changed()
+        {
             println!("changed: {}", state.number);
         };
     });
 }
-
 
 /// Fictional row data
 struct TableRow {

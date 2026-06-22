@@ -1,13 +1,14 @@
 use std::sync::{Arc, Mutex};
-use egui::{CentralPanel, Style, ViewportBuilder};
+
 use egui::scroll_area::ScrollBarVisibility;
+use egui::{CentralPanel, Style, ViewportBuilder};
 use egui_tool_windows::ToolWindows;
 use shared::ExampleWindowState;
 
 fn main() -> eframe::Result<()> {
     // run with `RUST_LOG=egui_tool_windows=trace` to see trace logs
     env_logger::init();
-    
+
     let native_options = eframe::NativeOptions {
         viewport: ViewportBuilder::default().with_inner_size([1027.0, 768.0]),
         ..Default::default()
@@ -46,17 +47,16 @@ impl eframe::App for MyApp {
             ui.vertical_centered(|ui| {
                 egui::Frame::group(&Style::default())
                     .outer_margin(40.0)
-                    .show(ui, |ui|{
-                    egui::ScrollArea::both()
-                        .auto_shrink([false, false])
-                        .scroll_bar_visibility(ScrollBarVisibility::AlwaysVisible)
-                        .show(ui, |ui|{
-                            ui.strong("Content inside a frame");
-                            
-                            ui.weak(shared::LOREM_IPSUM);
-                            
-                            ToolWindows::new()
-                                .windows(ui, |builder|{
+                    .show(ui, |ui| {
+                        egui::ScrollArea::both()
+                            .auto_shrink([false, false])
+                            .scroll_bar_visibility(ScrollBarVisibility::AlwaysVisible)
+                            .show(ui, |ui| {
+                                ui.strong("Content inside a frame");
+
+                                ui.weak(shared::LOREM_IPSUM);
+
+                                ToolWindows::new().windows(ui, |builder| {
                                     builder
                                         .add_window("table_tool_window_1")
                                         .default_pos([50.0, 50.0])
@@ -69,22 +69,23 @@ impl eframe::App for MyApp {
                                         .add_window("table_tool_window_2")
                                         .default_pos([100.0, 100.0])
                                         .default_size([400.0, 300.0])
-                                        .show("Example table 2 (drag or collapse me) - very very long title".to_string(), {
-                                            let example_state_arc = self.example_state.clone();
+                                        .show(
+                                            "Example table 2 (drag or collapse me) - very very long title".to_string(),
+                                            {
+                                                let example_state_arc = self.example_state.clone();
 
-                                            move |ui| {
-                                                let mut example_state = example_state_arc.lock().unwrap();
-                                                shared::draw_example_window_contents_1(ui, &mut example_state);
-                                            }
-                                        });
-
+                                                move |ui| {
+                                                    let mut example_state = example_state_arc.lock().unwrap();
+                                                    shared::draw_example_window_contents_1(ui, &mut example_state);
+                                                }
+                                            },
+                                        );
                                 });
-
-                        });
-                });
+                            });
+                    });
             });
         });
-        
+
         // Inspection window
         let ctx = ui.ctx();
         egui::Window::new("🔍 Inspection")
@@ -95,4 +96,3 @@ impl eframe::App for MyApp {
             });
     }
 }
-

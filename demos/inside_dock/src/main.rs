@@ -1,15 +1,16 @@
 use std::sync::{Arc, Mutex};
-use egui::{CentralPanel, Id, ViewportBuilder};
+
 use egui::scroll_area::ScrollBarVisibility;
-use egui_dock::{DockArea, DockState, NodeIndex, Style};
+use egui::{CentralPanel, Id, ViewportBuilder};
 use egui_dock::egui::{Ui, WidgetText};
+use egui_dock::{DockArea, DockState, NodeIndex, Style};
 use egui_tool_windows::ToolWindows;
 use shared::ExampleWindowState;
 
 fn main() -> eframe::Result<()> {
     // run with `RUST_LOG=egui_tool_windows=trace` to see trace logs
     env_logger::init();
-    
+
     let native_options = eframe::NativeOptions {
         viewport: ViewportBuilder::default().with_inner_size([1027.0, 768.0]),
         ..Default::default()
@@ -28,8 +29,13 @@ struct Tab {
 
 enum TabKind {
     Table1,
-    Example1 { state: Arc<Mutex<ExampleWindowState>> },
-    ToolWindows { state: Arc<Mutex<ExampleWindowState>>, salt: &'static str },
+    Example1 {
+        state: Arc<Mutex<ExampleWindowState>>,
+    },
+    ToolWindows {
+        state: Arc<Mutex<ExampleWindowState>>,
+        salt: &'static str,
+    },
 }
 
 struct MyApp {
@@ -39,30 +45,46 @@ struct MyApp {
 
 impl Default for MyApp {
     fn default() -> Self {
-        let mut tree = DockState::new(vec![
-            Tab { name: "Tool windows in a tab", kind: TabKind::ToolWindows { state: Arc::new(Mutex::new(ExampleWindowState::default())), salt: "tab 1"} },
-        ]);
+        let mut tree = DockState::new(vec![Tab {
+            name: "Tool windows in a tab",
+            kind: TabKind::ToolWindows {
+                state: Arc::new(Mutex::new(ExampleWindowState::default())),
+                salt: "tab 1",
+            },
+        }]);
 
         // You can modify the tree before constructing the dock
-        let [a, _b] =
-            tree.main_surface_mut()
-                .split_left(NodeIndex::root(), 0.3, vec![
-                    Tab { name: "Example Table", kind: TabKind::Table1 },
-                ]);
+        let [a, _b] = tree
+            .main_surface_mut()
+            .split_left(NodeIndex::root(), 0.3, vec![Tab {
+                name: "Example Table",
+                kind: TabKind::Table1,
+            }]);
         let [_, _] = tree
             .main_surface_mut()
-            .split_below(a, 0.7, vec![
-                Tab { name: "Example Controls", kind: TabKind::Example1 { state: Arc::new(Mutex::new(ExampleWindowState::default()))} },
-            ]);
-        let _ = tree
-            .add_window( vec![
-                Tab { name: "Tool windows in initially floating dock window", kind: TabKind::ToolWindows { state: Arc::new(Mutex::new(ExampleWindowState::default())), salt: "tab 4" } },
-                Tab { name: "Example Table", kind: TabKind::Table1 },
-            ]);
+            .split_below(a, 0.7, vec![Tab {
+                name: "Example Controls",
+                kind: TabKind::Example1 {
+                    state: Arc::new(Mutex::new(ExampleWindowState::default())),
+                },
+            }]);
+        let _ = tree.add_window(vec![
+            Tab {
+                name: "Tool windows in initially floating dock window",
+                kind: TabKind::ToolWindows {
+                    state: Arc::new(Mutex::new(ExampleWindowState::default())),
+                    salt: "tab 4",
+                },
+            },
+            Tab {
+                name: "Example Table",
+                kind: TabKind::Table1,
+            },
+        ]);
 
         Self {
             inspection: false,
-            tree
+            tree,
         }
     }
 }
@@ -73,49 +95,53 @@ impl TabKind {
             TabKind::Table1 => {
                 shared::draw_table(ui, "table_1");
             }
-            TabKind::Example1 { state } => {
+            TabKind::Example1 {
+                state,
+            } => {
                 let mut example_state = state.lock().unwrap();
                 shared::draw_example_window_contents_1(ui, &mut example_state);
             }
-            TabKind::ToolWindows { state , salt} => {
+            TabKind::ToolWindows {
+                state,
+                salt,
+            } => {
                 egui::ScrollArea::both()
                     .auto_shrink([false, false])
                     .scroll_bar_visibility(ScrollBarVisibility::AlwaysVisible)
-                    .show(ui, |ui|{
-                        
+                    .show(ui, |ui| {
                         // using a block to make sure the state guard is dropped
                         {
                             let mut example_state = state.lock().unwrap();
                             shared::draw_example_window_contents_1(ui, &mut example_state);
                         }
-                        
-                        shared::draw_table(ui, "table_2");
-                        ToolWindows::new()
-                            .windows(ui, |builder|{
-                                builder
-                                    .add_window(Id::new("table_tool_window_1").with(*salt))
-                                    .default_pos([50.0, 50.0])
-                                    .default_size([400.0, 300.0])
-                                    .show("Example table 1 (drag or collapse me)".to_string(), |ui| {
-                                        shared::draw_table(ui, "table_3");
-                                    });
 
-                                builder
-                                    .add_window(Id::new("controls_tool_window_1").with(*salt))
-                                    .default_pos([100.0, 100.0])
-                                    .default_size([400.0, 300.0])
-                                    .show("Example table 2 (drag or collapse me) - very very long title".to_string(), {
+                        shared::draw_table(ui, "table_2");
+                        ToolWindows::new().windows(ui, |builder| {
+                            builder
+                                .add_window(Id::new("table_tool_window_1").with(*salt))
+                                .default_pos([50.0, 50.0])
+                                .default_size([400.0, 300.0])
+                                .show("Example table 1 (drag or collapse me)".to_string(), |ui| {
+                                    shared::draw_table(ui, "table_3");
+                                });
+
+                            builder
+                                .add_window(Id::new("controls_tool_window_1").with(*salt))
+                                .default_pos([100.0, 100.0])
+                                .default_size([400.0, 300.0])
+                                .show(
+                                    "Example table 2 (drag or collapse me) - very very long title".to_string(),
+                                    {
                                         let example_state_arc = state.clone();
 
                                         move |ui| {
                                             let mut example_state = example_state_arc.lock().unwrap();
                                             shared::draw_example_window_contents_1(ui, &mut example_state);
                                         }
-                                    });
-
-                            });
+                                    },
+                                );
+                        });
                     });
-
             }
         }
     }
@@ -131,12 +157,11 @@ impl egui_dock::TabViewer for TabViewer {
     }
 
     fn ui(&mut self, ui: &mut Ui, tab: &mut Self::Tab) {
-        ui.push_id(ui.id().with(tab.name), |ui|{
+        ui.push_id(ui.id().with(tab.name), |ui| {
             tab.kind.ui(ui);
         });
     }
 }
-
 
 impl eframe::App for MyApp {
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
@@ -155,9 +180,8 @@ impl eframe::App for MyApp {
             DockArea::new(&mut self.tree)
                 .style(Style::from_egui(ctx.style().as_ref()))
                 .show_inside(ui, &mut TabViewer {});
-
         });
-        
+
         let central_panel_rect = response.response.rect;
 
         // Inspection window
@@ -170,4 +194,3 @@ impl eframe::App for MyApp {
             });
     }
 }
-
