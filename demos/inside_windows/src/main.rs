@@ -104,30 +104,32 @@ impl MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
+        egui::Panel::top("top_panel").show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Document System");
                 ui.checkbox(&mut self.inspection, "🔍 Inspection");
             });
         });
 
-        let response = CentralPanel::default().show(ctx, |ui| {
+        let response = CentralPanel::default().show_inside(ui, |ui| {
             ui.label("Example document system!");
         });
         
         let central_panel_rect = response.response.rect;
 
         // Create document windows with proper z-ordering
-        self.create_document_window(ctx, central_panel_rect, "Document 1", ExampleWindowKind::Example1, [250.0, 100.0], [300.0, 200.0]);
-        self.create_document_window(ctx, central_panel_rect, "Document 2", ExampleWindowKind::Table1, [350.0, 150.0], [300.0, 200.0]);
-        self.create_document_window(ctx, central_panel_rect, "Document 3", ExampleWindowKind::ToolWindows1, [150.0, 200.0], [800.0, 400.0]);
+        self.create_document_window(&ctx, central_panel_rect, "Document 1", ExampleWindowKind::Example1, [250.0, 100.0], [300.0, 200.0]);
+        self.create_document_window(&ctx, central_panel_rect, "Document 2", ExampleWindowKind::Table1, [350.0, 150.0], [300.0, 200.0]);
+        self.create_document_window(&ctx, central_panel_rect, "Document 3", ExampleWindowKind::ToolWindows1, [150.0, 200.0], [800.0, 400.0]);
 
         // Inspection window
         egui::Window::new("🔍 Inspection")
             .open(&mut self.inspection)
             .vscroll(true)
-            .show(ctx, |ui| {
+            .show(&ctx, |ui| {
                 ctx.inspection_ui(ui);
             });
     }

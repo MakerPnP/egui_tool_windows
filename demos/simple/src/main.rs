@@ -34,15 +34,15 @@ impl Default for MyApp {
 }
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::Panel::top("top_panel").show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Tool windows demo");
                 ui.checkbox(&mut self.inspection, "🔍 Inspection");
             });
         });
 
-        CentralPanel::default().show(ctx, |ui| {
+        CentralPanel::default().show_inside(ui, |ui| {
             ui.vertical_centered(|ui| {
                 egui::Frame::group(&Style::default())
                     .outer_margin(40.0)
@@ -86,6 +86,7 @@ impl eframe::App for MyApp {
         });
         
         // Inspection window
+        let ctx = ui.ctx();
         egui::Window::new("🔍 Inspection")
             .open(&mut self.inspection)
             .vscroll(true)

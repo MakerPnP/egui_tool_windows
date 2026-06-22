@@ -139,15 +139,17 @@ impl egui_dock::TabViewer for TabViewer {
 
 
 impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
+        let ctx = ui.ctx().clone();
+
+        egui::Panel::top("top_panel").show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Document System");
                 ui.checkbox(&mut self.inspection, "🔍 Inspection");
             });
         });
 
-        let response = CentralPanel::default().show(ctx, |ui| {
+        let response = CentralPanel::default().show_inside(ui, |ui| {
             ui.label("Example document system!");
 
             DockArea::new(&mut self.tree)
@@ -163,7 +165,7 @@ impl eframe::App for MyApp {
             .open(&mut self.inspection)
             .constrain_to(central_panel_rect)
             .vscroll(true)
-            .show(ctx, |ui| {
+            .show(&ctx, |ui| {
                 ctx.inspection_ui(ui);
             });
     }
