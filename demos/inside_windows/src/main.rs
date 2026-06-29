@@ -113,14 +113,14 @@ impl MyApp {
 impl eframe::App for MyApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
-        egui::Panel::top("top_panel").show_inside(ui, |ui| {
+        egui::Panel::top("top_panel").show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Document System");
                 ui.checkbox(&mut self.inspection, "🔍 Inspection");
             });
         });
 
-        let response = CentralPanel::default().show_inside(ui, |ui| {
+        let response = CentralPanel::default().show(ui, |ui| {
             ui.label("Example document system!");
         });
 

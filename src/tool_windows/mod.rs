@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::hash::Hash;
 
 use egui::collapsing_header::CollapsingState;
@@ -612,7 +613,7 @@ pub struct ToolWindowsBuilder {
 }
 
 impl ToolWindowsBuilder {
-    pub fn add_window(&mut self, id_salt: impl Hash) -> ToolWindowInstanceBuilder<'_> {
+    pub fn add_window(&mut self, id_salt: impl Hash + Debug) -> ToolWindowInstanceBuilder<'_> {
         let id = Id::new(id_salt);
         ToolWindowInstanceBuilder {
             id,

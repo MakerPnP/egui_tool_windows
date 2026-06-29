@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::hash::Hash;
 
 use egui::{RichText, Ui};
@@ -92,7 +93,7 @@ fn fake_data() -> Vec<TableRow> {
     ]
 }
 
-pub fn draw_table(ui: &mut egui::Ui, id_salt: impl Hash) {
+pub fn draw_table(ui: &mut egui::Ui, id_salt: impl Hash + Debug) {
     let rows = fake_data();
 
     let row_height = 24.0;
