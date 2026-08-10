@@ -77,22 +77,31 @@ impl ToolWindow {
 
         let corner_radius = CornerRadius::same(6);
 
-        if false {
-            // FIXME if this block is done before the title_bar_response is created, then `clicked #1` is never printed when clicking in the title bar
-            //       but the title bar has not been created yet, why?
-            //       if you add a return statement after the `if ... clicked()` block below, then you can see that the `clicked #1` is printed.
-            //       also, the label UNDER the window in the `simple` demo is selectable when a) this block is enabled, even though we later obscure it and b) the cursor is
-            //       positioned below the title bar.
-            let input_response = ui.interact(rect, self.id.with("tool_window_input"), Sense::click());
-            if input_response.clicked() {
-                trace!(
-                    "clicked #1, id: {:?}, rendering_stack: {:?}",
-                    self.id, state.rendering_stack
-                );
-                let id = self.id;
-                state.bring_to_front(id);
-            }
-            // return; // FIXME uncomment this to see the `clicked #1` trace as above (use `layout_debugging` feature to see the rects so you know where to click)
+        //
+        // input shield
+        //
+        // Register a widget that covers the whole window and senses both clicks and drags.
+        //
+        // This is the FIRST interactive widget registered for this window, so every widget we
+        // register afterwards (resize handles, title bar, content) is registered *later* and
+        // therefore sits on top of the shield in egui's hit-test ordering - those widgets keep
+        // working normally.
+        //
+        // Relative to windows *below* this one in the rendering stack (and to any widgets in the
+        // container behind the windows), the shield is on top, so it wins the hit-test for click,
+        // drag and hover. Because egui only marks the single top-most sensing widget as
+        // `hovered`/`clicked`/`dragged` at a given position, this is what stops pointer events -
+        // including the cursor-icon changes driven by `hovered()` - from reaching an obscured tool
+        // window. Without a *drag*-sensing shield, drag-only widgets underneath (table column
+        // dividers, drag-values, ...) would still be picked as the drag hit and respond through the
+        // window on top of them.
+        let shield_response = ui.interact(rect, self.id.with("__tool_window_shield"), Sense::click_and_drag());
+        if shield_response.clicked() || shield_response.drag_started() {
+            trace!(
+                "shield interaction, bringing to front. id: {:?}, rendering_stack: {:?}",
+                self.id, state.rendering_stack
+            );
+            state.bring_to_front(self.id);
         }
 
         let mut corner_response = None;
@@ -254,38 +263,12 @@ impl ToolWindow {
                 Sense::click_and_drag(),
             );
 
-            if title_bar_response.clicked() {
-                // FIXME this is never printed, if the FIXME block at around line 70 is enabled why?
-                //       the response comes from title_bar_rect_ui.interact with Sense::click_and_drag()
-                trace!("title bar clicked #1");
+            // Bring the window to the front when its title bar is clicked or a drag on it starts.
+            // The title bar is registered after the input shield, so it (and the window content)
+            // correctly receives interactions instead of the shield.
+            if title_bar_response.clicked() || title_bar_response.drag_started() {
+                state.bring_to_front(self.id);
             }
-
-            if title_bar_rect_ui.response().clicked() {
-                // FIXME this is never printed either, why?
-                //       the response comes from title_bar_rect_ui which is created with a builder that calls .sense(Sense::click_and_drag())
-                trace!("title bar clicked #2");
-            }
-
-            {
-                // FIXME if this block is done before the title_bar_response is created, then `clicked #2` is never printed when clicking the title bar.
-                let input_response = ui.interact(rect, self.id.with("tool_window_input"), Sense::click());
-
-                if input_response.clicked() {
-                    trace!(
-                        "clicked #2, id: {:?}, rendering_stack: {:?}",
-                        self.id, state.rendering_stack
-                    );
-                    let id = self.id;
-                    state.bring_to_front(id);
-                }
-            }
-
-            // FIXME the current combination of FIXME's and code allows the title bar, and the content to be clicked
-            //       and have the window be brought to the front.
-            //       and allows title bar drags to work (handled below)
-            //       however, it's unknown why the behavior is so unpredictable
-            //       there was a LOT of trial and error and debugging to get this to work, and why it does is a mystery.
-            // FIXME there is a considerable amount of temporal coupling in this method!
 
             let mut title_bar_rounding = corner_radius;
 
@@ -342,25 +325,23 @@ impl ToolWindow {
                     );
                 });
 
-            // FIXME again, due to z-ordering, it's possible to drag a window from it's title when the title is obscured
-            //       so to work around this only permit top-most windows to be dragged.
-            if is_topmost {
-                if title_bar_response.drag_started() {
-                    self.state.drag_state = Some(DragState {
-                        drag_pivot: title_bar_response
-                            .interact_pointer_pos()
-                            .unwrap_or(self.state.position),
-                        initial_drag_position: self.state.position,
-                    })
-                } else if title_bar_response.drag_stopped() {
-                    self.state.drag_state = None;
-                }
+            // Dragging the title bar moves the window.  The input shield ensures an obscured
+            // title bar can't receive a drag, so only the title bar that is actually visible at the pointer will start a move.
+            if title_bar_response.drag_started() {
+                self.state.drag_state = Some(DragState {
+                    drag_pivot: title_bar_response
+                        .interact_pointer_pos()
+                        .unwrap_or(self.state.position),
+                    initial_drag_position: self.state.position,
+                })
+            } else if title_bar_response.drag_stopped() {
+                self.state.drag_state = None;
+            }
 
-                if let Some(drag_state) = &self.state.drag_state {
-                    if let Some(pos) = ctx.input(|i| i.pointer.interact_pos()) {
-                        let delta = pos - drag_state.drag_pivot;
-                        self.state.position = drag_state.initial_drag_position + delta;
-                    }
+            if let Some(drag_state) = &self.state.drag_state {
+                if let Some(pos) = ctx.input(|i| i.pointer.interact_pos()) {
+                    let delta = pos - drag_state.drag_pivot;
+                    self.state.position = drag_state.initial_drag_position + delta;
                 }
             }
 
