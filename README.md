@@ -59,22 +59,6 @@ own tool windows.
 
 This crate is work-in-progress, but usable, see below.
 
-## Limitations
-
-* If one window obscures another, hovering of elements in the obscured window 'bleeds-though'.  e.g. if there's a table 
-  with resizable columns obscured by another tool window, when you hover over the obscured column divider the mouse
-  pointer changes and allows obscured columns to be resized, when it should not.
-* Due to similar bleed-though of egui sense due to lack of z-ordering, non-top-most tool windows cannot be resized or
-  dragged; you have to click the window first.  there are visual cues for top-most tool windows however.
-  It's perfectly usable, but not ideal.
-
-So currently, if what you want to put in tool windows isn't affected by the current limitations, then this is usable
-right now for you.
-
-Once the above issues are solved more attention will be given to additional planned features such as:
-* additional API methods. 
-* persistence.
-
 ## Demos
 
 The crate contains 3 demos.
