@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.1
+- Fix interactivity issues.  Now there is no bleed-though of hover and drag events to
+  widgets that appear beneath the tool window.
+- Allow resizing of tool windows without having to bring them to the front first.
+- Add support for closable tool windows. See `closable`.
+- Add support for custom content in the titlebar of the tool window. See `titlebar_content`.
+  This is useful for adding menu buttons, settings buttons, indicators, etc.
+- Id's must be created manually, instead of via salt.
+- Tool windows return actions which should be processed, e.g. `ToolWindowAction::CloseRequested`.
+- `Simple` demo updated to show how to use the `closable` and `titlebar_content` features.
+
 ## 0.5.0
 
 - Add support for egui 0.35.0.
