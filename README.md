@@ -74,7 +74,7 @@ Refer to the `demos` folder.
 
 Here's a recent screenshot of the `simple` demo:
 
-[<img src="assets/screenshots/screenshot_2025-06-30_134420.png" width="800" alt="egui_tool_windows">](assets/screenshots/screenshot_2025-06-30_134420.png)
+[<img src="assets/screenshots/screenshot_2026-08-10_224126.png" width="800" alt="egui_tool_windows">](assets/screenshots/screenshot_2025-06-30_134420.png)
 
 Here's a recent screenshot of the `inside_dock` demo:
 
