@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
 
@@ -8,19 +9,26 @@ use egui::{
 };
 use log::trace;
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ToolWindowAction {
+    CloseRequested,
+}
+
 struct ToolWindow {
     id: Id,
     state: ToolWindowState,
 }
 
 impl ToolWindow {
+
     fn show(
         &mut self,
         ui: &mut Ui,
-        title: String,
-        content_fn: impl FnOnce(&mut Ui) + Sized,
+        params: ToolWindowParameters,
         state: &mut ToolWindowsState,
-    ) {
+    ) -> Vec<ToolWindowAction> {
+        let mut actions = vec![];
+
         let is_topmost = state.is_topmost(self.id);
 
         let ctx = ui.ctx().clone();
@@ -302,13 +310,36 @@ impl ToolWindow {
                     style.wrap_mode = Some(egui::TextWrapMode::Extend);
                     style.interaction.selectable_labels = false;
 
-                    ui.horizontal(|ui| {
-                        ui.set_min_height(title_bar_rect.height() - border_adjust.y);
-                        collapsing_state.show_toggle_button(ui, egui::collapsing_header::paint_default_icon);
-                        self.state.collapsed = !collapsing_state.is_open();
+                    ui.set_clip_rect(title_bar_rect.intersect(ui_clip_rect));
 
-                        ui.label(title);
-                    });
+                    egui::Sides::new()
+                        .spacing(10.0)
+                        // lay out the right side (close button + custom content) first, then constrain
+                        // the left side (title) to the remaining space so a long title truncates with an
+                        // ellipsis instead of extending underneath the right-side widgets.
+                        .shrink_left()
+                        .truncate()
+                        .show(
+                        ui,
+                        |ui| {
+                            ui.set_min_height(title_bar_rect.height() - border_adjust.y);
+                            collapsing_state.show_toggle_button(ui, egui::collapsing_header::paint_default_icon);
+                            self.state.collapsed = !collapsing_state.is_open();
+                            ui.label(params.title);
+                        },
+                        |ui| {
+                            ui.set_min_height(title_bar_rect.height() - border_adjust.y);
+                            if params.closable {
+                                if ui.add(egui::Button::new("X")).clicked() {
+                                    trace!("closing window: {:?}", self.id);
+                                    actions.push(ToolWindowAction::CloseRequested);
+                                }
+                            }
+                            if let Some(title_fn) = params.titlebar_content_fn {
+                                title_fn(ui);
+                            }
+                        }
+                    );
                 });
 
             // FIXME again, due to z-ordering, it's possible to drag a window from it's title when the title is obscured
@@ -338,7 +369,9 @@ impl ToolWindow {
             //
 
             if !self.state.collapsed {
-                content_fn(ui);
+                if let Some(content_fn) = params.content_fn {
+                    content_fn(ui);
+                }
 
                 if let Some(corner_response) = corner_response {
                     stolen::paint_resize_corner(ui, &corner_response);
@@ -346,6 +379,8 @@ impl ToolWindow {
             }
         }
         collapsing_state.store(&ctx);
+
+        actions
     }
 
     fn clamp_offset(available: Vec2, offset: &mut Pos2) {
@@ -527,7 +562,7 @@ impl ToolWindows {
         Self {}
     }
 
-    pub fn windows<F>(self, ui: &mut Ui, mut collect_windows: F)
+    pub fn windows<F>(self, ui: &mut Ui, mut collect_windows: F) -> HashMap<Id, Vec<ToolWindowAction>>
     where
         F: FnMut(&mut ToolWindowsBuilder),
     {
@@ -563,7 +598,7 @@ impl ToolWindows {
                 });
 
             // add new ids
-            for (id, _, _) in builder.windows.iter() {
+            for (id, _) in builder.windows.iter() {
                 if !state_persistence
                     .state
                     .rendering_stack
@@ -579,42 +614,47 @@ impl ToolWindows {
         }
 
         // Create a map of windows by ID for faster lookup
-        let mut windows_map: std::collections::HashMap<Id, (ToolWindowParameters, Box<dyn FnOnce(&mut Ui)>)> = builder
+        let mut windows_map: std::collections::HashMap<Id, ToolWindowParameters> = builder
             .windows
             .drain(..)
-            .map(|(id, params, content_fn)| (id, (params, content_fn)))
+            .map(|(id, params)| (id, params))
             .collect();
 
+        let mut actions: HashMap<Id, Vec<ToolWindowAction>> = HashMap::new();
         // Render windows in the stored order
         let rendering_order = state_persistence
             .state
             .rendering_stack
             .clone();
         for id in rendering_order {
-            if let Some((params, content_fn)) = windows_map.remove(&id) {
+            if let Some(params) = windows_map.remove(&id) {
                 trace!("rendering window: {:?}", id);
 
                 let ctx = ui.ctx().clone();
                 let mut tool_window = ToolWindow::load_or_create_from_params(&ctx, id, &params);
                 ui.push_id(id.with("__tool_window"), |ui| {
-                    tool_window.show(ui, params.title, content_fn, &mut state_persistence.state);
+                    let window_actions = tool_window.show(ui, params, &mut state_persistence.state);
+                    if !window_actions.is_empty() {
+                        actions.insert(id, window_actions);
+                    };
                 });
                 tool_window.store(&ctx);
             }
         }
 
         state_persistence.store(&ctx);
+
+        actions
     }
 }
 
 #[derive(Default)]
 pub struct ToolWindowsBuilder {
-    windows: Vec<(Id, ToolWindowParameters, Box<dyn FnOnce(&mut Ui)>)>,
+    windows: Vec<(Id, ToolWindowParameters)>,
 }
 
 impl ToolWindowsBuilder {
-    pub fn add_window(&mut self, id_salt: impl Hash + Debug) -> ToolWindowInstanceBuilder<'_> {
-        let id = Id::new(id_salt);
+    pub fn add_window(&mut self, id: Id) -> ToolWindowInstanceBuilder<'_> {
         ToolWindowInstanceBuilder {
             id,
             builder: self,
@@ -629,11 +669,14 @@ pub struct ToolWindowInstanceBuilder<'a> {
     params: ToolWindowParameters,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct ToolWindowParameters {
     title: String,
+    closable: bool,
     default_pos: Pos2,
     default_size: Vec2,
+    titlebar_content_fn: Option<Box<dyn FnOnce(&mut Ui)>>,
+    content_fn: Option<Box<dyn FnOnce(&mut Ui)>>,
 }
 
 impl<'a> ToolWindowInstanceBuilder<'a> {
@@ -649,13 +692,29 @@ impl<'a> ToolWindowInstanceBuilder<'a> {
         self
     }
 
+    #[inline]
+    pub fn closable(mut self, closable: bool) -> Self {
+        self.params.closable = closable;
+        self
+    }
+
+    pub fn titlebar_content<F>(mut self, content_fn: F) -> Self
+    where
+        F: FnOnce(&mut Ui) + 'static,
+    {
+        self.params.titlebar_content_fn = Some(Box::new(content_fn));
+
+        self
+    }
+
     pub fn show<F>(mut self, title: String, content_fn: F)
     where
         F: FnOnce(&mut Ui) + 'static,
     {
         self.params.title = title;
+        self.params.content_fn = Some(Box::new(content_fn));
         self.builder
             .windows
-            .push((self.id, self.params, Box::new(content_fn)));
+            .push((self.id, self.params));
     }
 }

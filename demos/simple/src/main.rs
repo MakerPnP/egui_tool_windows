@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 
 use egui::scroll_area::ScrollBarVisibility;
-use egui::{CentralPanel, Style, ViewportBuilder};
-use egui_tool_windows::ToolWindows;
+use egui::{CentralPanel, Id, Style, ViewportBuilder};
+use egui_tool_windows::{ToolWindowAction, ToolWindows};
 use shared::ExampleWindowState;
 
 fn main() -> eframe::Result<()> {
@@ -23,6 +23,7 @@ fn main() -> eframe::Result<()> {
 struct MyApp {
     inspection: bool,
     example_state: Arc<Mutex<ExampleWindowState>>,
+    show_tool_window_2: bool,
 }
 
 impl Default for MyApp {
@@ -30,6 +31,7 @@ impl Default for MyApp {
         Self {
             inspection: false,
             example_state: Arc::new(Mutex::new(ExampleWindowState::default())),
+            show_tool_window_2: true,
         }
     }
 }
@@ -48,6 +50,10 @@ impl eframe::App for MyApp {
                 egui::Frame::group(&Style::default())
                     .outer_margin(40.0)
                     .show(ui, |ui| {
+                        if ui.selectable_label(self.show_tool_window_2, "Show tool window 2").clicked() {
+                            self.show_tool_window_2 = !self.show_tool_window_2;
+                        }
+
                         egui::ScrollArea::both()
                             .auto_shrink([false, false])
                             .scroll_bar_visibility(ScrollBarVisibility::AlwaysVisible)
@@ -56,31 +62,55 @@ impl eframe::App for MyApp {
 
                                 ui.weak(shared::LOREM_IPSUM);
 
-                                ToolWindows::new().windows(ui, |builder| {
+                                let tool_window_1_id = Id::new("table_tool_window_1");
+                                let tool_window_2_id = Id::new("table_tool_window_2");
+                                let all_actions = ToolWindows::new().windows(ui, |builder| {
                                     builder
-                                        .add_window("table_tool_window_1")
+                                        .add_window(tool_window_1_id)
                                         .default_pos([50.0, 50.0])
                                         .default_size([400.0, 300.0])
                                         .show("Example table 1 (drag or collapse me)".to_string(), |ui| {
                                             shared::draw_table(ui, "table_1");
                                         });
 
-                                    builder
-                                        .add_window("table_tool_window_2")
-                                        .default_pos([100.0, 100.0])
-                                        .default_size([400.0, 300.0])
-                                        .show(
-                                            "Example table 2 (drag or collapse me) - very very long title".to_string(),
-                                            {
-                                                let example_state_arc = self.example_state.clone();
+                                    if self.show_tool_window_2 {
+                                        builder
+                                            .add_window(tool_window_2_id)
+                                            .closable(true)
+                                            .default_pos([100.0, 100.0])
+                                            .default_size([400.0, 300.0])
+                                            .titlebar_content(|ui| {
+                                                ui.label("Custom UI");
+                                            })
+                                            .show(
+                                                "Example table 2 (drag or collapse me) - very very long title".to_string(),
+                                                {
+                                                    let example_state_arc = self.example_state.clone();
 
-                                                move |ui| {
-                                                    let mut example_state = example_state_arc.lock().unwrap();
-                                                    shared::draw_example_window_contents_1(ui, &mut example_state);
-                                                }
-                                            },
-                                        );
+                                                    move |ui| {
+                                                        let mut example_state = example_state_arc.lock().unwrap();
+                                                        shared::draw_example_window_contents_1(ui, &mut example_state);
+                                                    }
+                                                },
+                                            );
+                                    }
                                 });
+
+                                if !all_actions.is_empty() {
+                                     println!("all_actions: {:?}", all_actions);
+                                }
+                                for (id, window_actions) in all_actions {
+
+                                    if id.eq(&tool_window_2_id) {
+                                        for action in window_actions {
+                                            match action {
+                                                ToolWindowAction::CloseRequested => {
+                                                    self.show_tool_window_2 = false;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             });
                     });
             });

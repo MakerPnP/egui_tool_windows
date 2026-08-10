@@ -80,7 +80,7 @@ impl MyApp {
                             .show(ui, |ui| {
                                 ToolWindows::new().windows(ui, |builder| {
                                     builder
-                                        .add_window("table_tool_window_1")
+                                        .add_window(Id::new("table_tool_window_1"))
                                         .default_pos([50.0, 50.0])
                                         .default_size([400.0, 300.0])
                                         .show("Example table (drag or collapse me)".to_string(), |ui| {
@@ -88,7 +88,7 @@ impl MyApp {
                                         });
 
                                     builder
-                                        .add_window("control_tool_window_1")
+                                        .add_window(Id::new("control_tool_window_1"))
                                         .default_pos([100.0, 100.0])
                                         .default_size([400.0, 300.0])
                                         .show(
