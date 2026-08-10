@@ -3,10 +3,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 
 use egui::collapsing_header::CollapsingState;
-use egui::{
-    Align, Color32, Context, CornerRadius, CursorIcon, Frame, Id, Layout, Pos2, Rect, Sense, Style, Ui, UiBuilder,
-    Vec2, Vec2b, vec2,
-};
+use egui::{Align, Color32, Context, CornerRadius, CursorIcon, Frame, Id, Layout, Pos2, Rect, Sense, Style, Ui, UiBuilder, Vec2, Vec2b, vec2, Stroke};
 use log::trace;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -311,7 +308,11 @@ impl ToolWindow {
                         |ui| {
                             ui.set_min_height(title_bar_rect.height() - border_adjust.y);
                             if params.closable {
-                                if ui.add(egui::Button::new("X")).clicked() {
+                                let button = egui::Button::new("X")
+                                    .min_size(vec2(20.0, title_bar_height))
+                                    .frame(false);
+
+                                if ui.add(button).clicked() {
                                     trace!("closing window: {:?}", self.id);
                                     actions.push(ToolWindowAction::CloseRequested);
                                 }
