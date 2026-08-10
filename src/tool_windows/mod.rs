@@ -104,11 +104,7 @@ impl ToolWindow {
             state.bring_to_front(self.id);
         }
 
-        let mut corner_response = None;
-        // FIXME currently, due to lack of proper z-ordering we need to avoid showing resize handles for non-topmost windows
-        //       this also means, when a tool window is not partially obscured, you have to click it before you can resize it.
-        //       there are visual cues when a window is top-most, it's header is highlighted, and the corner resize handles are shown.
-        if is_topmost {
+        let corner_response = {
             let edges = [
                 (
                     "left",
@@ -166,7 +162,7 @@ impl ToolWindow {
                 .any()
                 .then(|| id.with("__resize_corner"));
 
-            corner_response = if let Some(corner_id) = corner_id {
+            let corner_response = if let Some(corner_id) = corner_id {
                 let corner_size = Vec2::splat(resize_corner_size);
                 let corner_rect =
                     egui::Rect::from_min_size(rect.right_bottom() - corner_size - border_adjust, corner_size);
@@ -198,7 +194,9 @@ impl ToolWindow {
                 "position: {:?}, size: {:?}, resize_delta: {:?}",
                 self.state.position, self.state.size, resize_delta
             );
-        }
+
+            corner_response
+        };
 
         //
         // draw the window frame
