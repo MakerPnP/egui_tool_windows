@@ -3,7 +3,10 @@ use std::fmt::Debug;
 use std::hash::Hash;
 
 use egui::collapsing_header::CollapsingState;
-use egui::{Align, Color32, Context, CornerRadius, CursorIcon, Frame, Id, Layout, Pos2, Rect, Sense, Style, Ui, UiBuilder, Vec2, Vec2b, vec2, Stroke};
+use egui::{
+    Align, Color32, Context, CornerRadius, CursorIcon, Frame, Id, Layout, Pos2, Rect, Sense, Stroke, Style, Ui,
+    UiBuilder, Vec2, Vec2b, vec2,
+};
 use log::trace;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -17,7 +20,6 @@ struct ToolWindow {
 }
 
 impl ToolWindow {
-
     fn show(
         &mut self,
         ui: &mut Ui,
@@ -298,30 +300,30 @@ impl ToolWindow {
                         .shrink_left()
                         .truncate()
                         .show(
-                        ui,
-                        |ui| {
-                            ui.set_min_height(title_bar_rect.height() - border_adjust.y);
-                            collapsing_state.show_toggle_button(ui, egui::collapsing_header::paint_default_icon);
-                            self.state.collapsed = !collapsing_state.is_open();
-                            ui.label(params.title);
-                        },
-                        |ui| {
-                            ui.set_min_height(title_bar_rect.height() - border_adjust.y);
-                            if params.closable {
-                                let button = egui::Button::new("X")
-                                    .min_size(vec2(20.0, title_bar_height))
-                                    .frame(false);
+                            ui,
+                            |ui| {
+                                ui.set_min_height(title_bar_rect.height() - border_adjust.y);
+                                collapsing_state.show_toggle_button(ui, egui::collapsing_header::paint_default_icon);
+                                self.state.collapsed = !collapsing_state.is_open();
+                                ui.label(params.title);
+                            },
+                            |ui| {
+                                ui.set_min_height(title_bar_rect.height() - border_adjust.y);
+                                if params.closable {
+                                    let button = egui::Button::new("X")
+                                        .min_size(vec2(20.0, title_bar_height))
+                                        .frame(false);
 
-                                if ui.add(button).clicked() {
-                                    trace!("closing window: {:?}", self.id);
-                                    actions.push(ToolWindowAction::CloseRequested);
+                                    if ui.add(button).clicked() {
+                                        trace!("closing window: {:?}", self.id);
+                                        actions.push(ToolWindowAction::CloseRequested);
+                                    }
                                 }
-                            }
-                            if let Some(title_fn) = params.titlebar_content_fn {
-                                title_fn(ui);
-                            }
-                        }
-                    );
+                                if let Some(title_fn) = params.titlebar_content_fn {
+                                    title_fn(ui);
+                                }
+                            },
+                        );
                 });
 
             // Dragging the title bar moves the window.  The input shield ensures an obscured

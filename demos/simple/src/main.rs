@@ -50,7 +50,10 @@ impl eframe::App for MyApp {
                 egui::Frame::group(&Style::default())
                     .outer_margin(40.0)
                     .show(ui, |ui| {
-                        if ui.selectable_label(self.show_tool_window_2, "Show tool window 2").clicked() {
+                        if ui
+                            .selectable_label(self.show_tool_window_2, "Show tool window 2")
+                            .clicked()
+                        {
                             self.show_tool_window_2 = !self.show_tool_window_2;
                         }
 
@@ -83,7 +86,8 @@ impl eframe::App for MyApp {
                                                 ui.label("Custom UI");
                                             })
                                             .show(
-                                                "Example table 2 (drag or collapse me) - very very long title".to_string(),
+                                                "Example window 2 (drag or collapse me) - very very long title"
+                                                    .to_string(),
                                                 {
                                                     let example_state_arc = self.example_state.clone();
 
@@ -97,10 +101,9 @@ impl eframe::App for MyApp {
                                 });
 
                                 if !all_actions.is_empty() {
-                                     println!("all_actions: {:?}", all_actions);
+                                    println!("all_actions: {:?}", all_actions);
                                 }
                                 for (id, window_actions) in all_actions {
-
                                     if id.eq(&tool_window_2_id) {
                                         for action in window_actions {
                                             match action {
