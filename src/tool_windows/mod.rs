@@ -76,19 +76,35 @@ impl ToolWindow {
         // `content_origin`, which moves with the content as the container is scrolled. Otherwise
         // it's anchored to (and clamped within) the container's currently visible viewport, so it
         // stays fully reachable even though it can never be scrolled to.
-        let top_left = if scrollable {
+        //
+        // The viewport-relative clamp is deliberately applied to a *copy* (`display_position`),
+        // never written back into `self.state.position`: the container's visible size can shrink
+        // and grow again from one frame to the next (e.g. while an enclosing window is actively
+        // being resized), and `self.state.position` must keep remembering where the window
+        // actually belongs so it's restored there once the container is big enough again, rather
+        // than staying wherever it was left clamped to. `display_position` is also what any drag
+        // started this frame is anchored to (see below), so grabbing a window that's currently
+        // being displayed clamped moves it from where it visibly is, not from its unclamped
+        // `self.state.position`.
+        let display_position = if scrollable {
             self.state.position.x = self.state.position.x.max(0.0);
             self.state.position.y = self.state.position.y.max(0.0);
-            content_origin + self.state.position.to_vec2()
+            self.state.position
         } else {
             let available = Vec2::new(
                 (ui_clip_rect.width() - position_margin).max(position_margin),
                 (ui_clip_rect.height() - position_margin).max(position_margin),
             );
 
-            Self::clamp_offset(available, &mut self.state.position);
+            let mut display_position = self.state.position;
+            Self::clamp_offset(available, &mut display_position);
+            display_position
+        };
 
-            ui_clip_rect.min + self.state.position.to_vec2()
+        let top_left = if scrollable {
+            content_origin + display_position.to_vec2()
+        } else {
+            ui_clip_rect.min + display_position.to_vec2()
         };
 
         let border_adjust_splat = (inner_margin + outer_margin) * 2;
@@ -269,7 +285,7 @@ impl ToolWindow {
                 bottom,
                 drag_pivot,
                 initial_size: self.state.size,
-                initial_position: self.state.position,
+                initial_position: display_position,
             });
         }
 
@@ -490,8 +506,8 @@ impl ToolWindow {
                 self.state.drag_state = Some(DragState {
                     drag_pivot: title_bar_response
                         .interact_pointer_pos()
-                        .unwrap_or(self.state.position),
-                    initial_drag_position: self.state.position,
+                        .unwrap_or(top_left),
+                    initial_drag_position: display_position,
                 })
             } else if title_bar_response.drag_stopped() {
                 self.state.drag_state = None;

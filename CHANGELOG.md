@@ -13,6 +13,7 @@
 - Long window titles now show ellipsis if they are too long to fit.
 - Add support for a 'scrollable' mode (disabled by default).
 - Add easing when dragging/resizing windows in a scroll area. 
+- Shrinking and then growing a container will restore tool windows to their last-placed position.
 
 ## 0.5.0
 
