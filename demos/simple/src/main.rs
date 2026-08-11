@@ -74,40 +74,43 @@ impl eframe::App for MyApp {
                                 let all_actions = ToolWindows::new()
                                     .scrollable(self.scrollable)
                                     .windows(ui, |builder| {
-                                    builder
-                                        .add_window(tool_window_1_id)
-                                        .default_pos([50.0, 50.0])
-                                        .default_size([400.0, 300.0])
-                                        .show("Example table 1 (drag or collapse me)".to_string(), |ui| {
-                                            ui.set_min_height(50.0);
-                                            shared::draw_table(ui, "table_1");
-                                        });
-
-                                    if self.show_tool_window_2 {
                                         builder
-                                            .add_window(tool_window_2_id)
-                                            .closable(true)
-                                            .default_pos([100.0, 100.0])
+                                            .add_window(tool_window_1_id)
+                                            .default_pos([50.0, 50.0])
                                             .default_size([400.0, 300.0])
-                                            .titlebar_content(|ui| {
-                                                ui.label("Custom UI");
-                                            })
-                                            .show(
-                                                "Example window 2 (drag or collapse me) - very very long title"
-                                                    .to_string(),
-                                                {
-                                                    let example_state_arc = self.example_state.clone();
+                                            .show("Example table 1 (drag or collapse me)".to_string(), |ui| {
+                                                ui.set_min_height(50.0);
+                                                shared::draw_table(ui, "table_1");
+                                            });
 
-                                                    move |ui| {
-                                                        ui.set_min_height(50.0);
+                                        if self.show_tool_window_2 {
+                                            builder
+                                                .add_window(tool_window_2_id)
+                                                .closable(true)
+                                                .default_pos([100.0, 100.0])
+                                                .default_size([400.0, 300.0])
+                                                .titlebar_content(|ui| {
+                                                    ui.label("Custom UI");
+                                                })
+                                                .show(
+                                                    "Example window 2 (drag or collapse me) - very very long title"
+                                                        .to_string(),
+                                                    {
+                                                        let example_state_arc = self.example_state.clone();
 
-                                                        let mut example_state = example_state_arc.lock().unwrap();
-                                                        shared::draw_example_window_contents_1(ui, &mut example_state);
-                                                    }
-                                                },
-                                            );
-                                    }
-                                });
+                                                        move |ui| {
+                                                            ui.set_min_height(50.0);
+
+                                                            let mut example_state = example_state_arc.lock().unwrap();
+                                                            shared::draw_example_window_contents_1(
+                                                                ui,
+                                                                &mut example_state,
+                                                            );
+                                                        }
+                                                    },
+                                                );
+                                        }
+                                    });
 
                                 if !all_actions.is_empty() {
                                     println!("all_actions: {:?}", all_actions);

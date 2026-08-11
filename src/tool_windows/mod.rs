@@ -936,16 +936,27 @@ impl ToolWindows {
             // grow; once nothing is dragging, drop straight back to the natural extent - eased,
             // rather than snapped to, if a drag/resize just ended (see `settling_extent`).
             let reported_extent = if any_dragging {
-                let merged = match (state_persistence.state.sticky_content_extent, natural_extent) {
+                let merged = match (
+                    state_persistence
+                        .state
+                        .sticky_content_extent,
+                    natural_extent,
+                ) {
                     (Some(sticky), Some(natural)) => Some(sticky.union(natural)),
                     (Some(sticky), None) => Some(sticky),
                     (None, natural) => natural,
                 };
-                state_persistence.state.sticky_content_extent = merged;
+                state_persistence
+                    .state
+                    .sticky_content_extent = merged;
                 state_persistence.state.settling_extent = None;
                 merged
             } else {
-                if let Some(frozen) = state_persistence.state.sticky_content_extent.take() {
+                if let Some(frozen) = state_persistence
+                    .state
+                    .sticky_content_extent
+                    .take()
+                {
                     if natural_extent != Some(frozen) {
                         state_persistence.state.settling_extent = Some(SettlingExtent {
                             from: frozen,
@@ -964,8 +975,8 @@ impl ToolWindows {
                     }
 
                     let now = ui.ctx().input(|i| i.time);
-                    let t = ((now - settling.start_time) / CONTENT_EXTENT_SETTLE_DURATION as f64).clamp(0.0, 1.0)
-                        as f32;
+                    let t =
+                        ((now - settling.start_time) / CONTENT_EXTENT_SETTLE_DURATION as f64).clamp(0.0, 1.0) as f32;
 
                     if t >= 1.0 {
                         state_persistence.state.settling_extent = None;

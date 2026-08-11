@@ -125,30 +125,30 @@ impl TabKind {
                         ToolWindows::new()
                             .scrollable(*scrollable)
                             .windows(ui, |builder| {
-                            builder
-                                .add_window(Id::new("table_tool_window_1").with(*salt))
-                                .default_pos([50.0, 50.0])
-                                .default_size([400.0, 300.0])
-                                .show("Example table 1 (drag or collapse me)".to_string(), |ui| {
-                                    shared::draw_table(ui, "table_3");
-                                });
+                                builder
+                                    .add_window(Id::new("table_tool_window_1").with(*salt))
+                                    .default_pos([50.0, 50.0])
+                                    .default_size([400.0, 300.0])
+                                    .show("Example table 1 (drag or collapse me)".to_string(), |ui| {
+                                        shared::draw_table(ui, "table_3");
+                                    });
 
-                            builder
-                                .add_window(Id::new("controls_tool_window_1").with(*salt))
-                                .default_pos([100.0, 100.0])
-                                .default_size([400.0, 300.0])
-                                .show(
-                                    "Example table 2 (drag or collapse me) - very very long title".to_string(),
-                                    {
-                                        let example_state_arc = state.clone();
+                                builder
+                                    .add_window(Id::new("controls_tool_window_1").with(*salt))
+                                    .default_pos([100.0, 100.0])
+                                    .default_size([400.0, 300.0])
+                                    .show(
+                                        "Example table 2 (drag or collapse me) - very very long title".to_string(),
+                                        {
+                                            let example_state_arc = state.clone();
 
-                                        move |ui| {
-                                            let mut example_state = example_state_arc.lock().unwrap();
-                                            shared::draw_example_window_contents_1(ui, &mut example_state);
-                                        }
-                                    },
-                                );
-                        });
+                                            move |ui| {
+                                                let mut example_state = example_state_arc.lock().unwrap();
+                                                shared::draw_example_window_contents_1(ui, &mut example_state);
+                                            }
+                                        },
+                                    );
+                            });
                     });
             }
         }
