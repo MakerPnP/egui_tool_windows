@@ -24,6 +24,7 @@ struct MyApp {
     inspection: bool,
     example_state: Arc<Mutex<ExampleWindowState>>,
     show_tool_window_2: bool,
+    scrollable: bool,
 }
 
 impl Default for MyApp {
@@ -32,6 +33,7 @@ impl Default for MyApp {
             inspection: false,
             example_state: Arc::new(Mutex::new(ExampleWindowState::default())),
             show_tool_window_2: true,
+            scrollable: false,
         }
     }
 }
@@ -57,6 +59,8 @@ impl eframe::App for MyApp {
                             self.show_tool_window_2 = !self.show_tool_window_2;
                         }
 
+                        ui.checkbox(&mut self.scrollable, "Scrollable");
+
                         egui::ScrollArea::both()
                             .auto_shrink([false, false])
                             .scroll_bar_visibility(ScrollBarVisibility::AlwaysVisible)
@@ -67,7 +71,9 @@ impl eframe::App for MyApp {
 
                                 let tool_window_1_id = Id::new("table_tool_window_1");
                                 let tool_window_2_id = Id::new("table_tool_window_2");
-                                let all_actions = ToolWindows::new().windows(ui, |builder| {
+                                let all_actions = ToolWindows::new()
+                                    .scrollable(self.scrollable)
+                                    .windows(ui, |builder| {
                                     builder
                                         .add_window(tool_window_1_id)
                                         .default_pos([50.0, 50.0])

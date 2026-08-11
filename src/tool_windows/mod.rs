@@ -14,6 +14,19 @@ pub enum ToolWindowAction {
     CloseRequested,
 }
 
+/// What a single window contributed this frame, for `ToolWindows::windows` to aggregate across
+/// all windows once every window has been processed (see `ToolWindowsState::sticky_content_extent`
+/// for why this can't just be reported per-window as it's produced).
+struct ToolWindowFrameResult {
+    actions: Vec<ToolWindowAction>,
+    /// This window's extent for the current frame, in content space (i.e. relative to
+    /// `content_origin`, not translated into absolute/screen coordinates) so it stays valid even
+    /// if `content_origin` itself moves (e.g. due to scrolling) before it's used.
+    content_space_rect: Rect,
+    /// Whether this window is currently being dragged or resized.
+    dragging: bool,
+}
+
 struct ToolWindow {
     id: Id,
     state: ToolWindowState,
@@ -25,7 +38,9 @@ impl ToolWindow {
         ui: &mut Ui,
         params: ToolWindowParameters,
         state: &mut ToolWindowsState,
-    ) -> Vec<ToolWindowAction> {
+        scrollable: bool,
+        content_origin: Pos2,
+    ) -> ToolWindowFrameResult {
         let mut actions = vec![];
 
         let is_topmost = state.is_topmost(self.id);
@@ -55,14 +70,25 @@ impl ToolWindow {
         let ui_clip_rect = ui.clip_rect();
         debug_rect(ui, ui_clip_rect, Color32::BLUE);
 
-        let available = Vec2::new(
-            (ui_clip_rect.width() - position_margin).max(position_margin),
-            (ui_clip_rect.height() - position_margin).max(position_margin),
-        );
+        // In `scrollable` mode the window lives in the container's scrollable content space (so
+        // it can be scrolled into view when clipped, see below) and is anchored to
+        // `content_origin`, which moves with the content as the container is scrolled. Otherwise
+        // it's anchored to (and clamped within) the container's currently visible viewport, so it
+        // stays fully reachable even though it can never be scrolled to.
+        let top_left = if scrollable {
+            self.state.position.x = self.state.position.x.max(0.0);
+            self.state.position.y = self.state.position.y.max(0.0);
+            content_origin + self.state.position.to_vec2()
+        } else {
+            let available = Vec2::new(
+                (ui_clip_rect.width() - position_margin).max(position_margin),
+                (ui_clip_rect.height() - position_margin).max(position_margin),
+            );
 
-        Self::clamp_offset(available, &mut self.state.position);
+            Self::clamp_offset(available, &mut self.state.position);
 
-        let top_left = ui_clip_rect.min + self.state.position.to_vec2();
+            ui_clip_rect.min + self.state.position.to_vec2()
+        };
 
         let border_adjust_splat = (inner_margin + outer_margin) * 2;
         let border_adjust = Vec2::splat(border_adjust_splat as f32);
@@ -79,6 +105,13 @@ impl ToolWindow {
 
         let rect = rect_for_size(self.state.size);
         debug_rect(ui, rect, Color32::BLUE);
+
+        // This window's full extent - including any part currently clipped by the container's
+        // viewport - expressed in content space. The caller unions this across all windows and
+        // registers the result with `ui`, so it contributes to the bounding box an enclosing
+        // `ScrollArea` uses to size its content and scrollbars. Without this, a window that
+        // doesn't fully fit is silently clipped with no way to scroll to the rest of it.
+        let content_space_rect = rect.translate(-content_origin.to_vec2());
 
         let corner_radius = CornerRadius::same(6);
 
@@ -497,7 +530,11 @@ impl ToolWindow {
         }
         collapsing_state.store(&ctx);
 
-        actions
+        ToolWindowFrameResult {
+            actions,
+            content_space_rect,
+            dragging: self.state.drag_state.is_some() || self.state.resize_drag_state.is_some(),
+        }
     }
 
     fn clamp_offset(available: Vec2, offset: &mut Pos2) {
@@ -660,7 +697,9 @@ mod stolen {
     }
 }
 
-pub struct ToolWindows {}
+pub struct ToolWindows {
+    scrollable: bool,
+}
 
 pub struct ToolWindowsStatePersistence {
     id: Id,
@@ -672,6 +711,21 @@ pub struct ToolWindowsStatePersistence {
 pub struct ToolWindowsState {
     /// The order in which windows are rendered, the LAST one appears on TOP, the FIRST one on BOTTOM.
     rendering_stack: Vec<Id>,
+
+    /// While any window is being dragged or resized, the union (in content space) of every
+    /// window's extent seen so far during that drag - so it can only grow, never shrink, no
+    /// matter how the window(s) responsible for the previous extent move or shrink in the
+    /// meantime. `None` whenever no window is currently being dragged/resized, at which point the
+    /// container is reported its true (possibly smaller) natural extent again.
+    ///
+    /// This exists because the reported extent feeds an enclosing `ScrollArea`'s content size,
+    /// which determines its maximum scroll offset. If the extent were allowed to shrink
+    /// mid-drag, a `ScrollArea` already scrolled near that max would immediately clamp its
+    /// offset down to the new, smaller max - and since window positions are anchored relative to
+    /// that same offset, the window being dragged would appear to stay glued to the same screen
+    /// position, no matter how far the pointer moves, until the offset bottomed out at zero.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    sticky_content_extent: Option<Rect>,
 }
 
 impl ToolWindowsState {
@@ -716,7 +770,21 @@ impl ToolWindowsStatePersistence {
 
 impl ToolWindows {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            scrollable: false,
+        }
+    }
+
+    /// When `true`, windows are anchored to the container's scrollable content space (rather than
+    /// its currently visible viewport) and their full extent - including any part currently
+    /// clipped - is registered with the container's `Ui`. This lets an enclosing `ScrollArea` grow
+    /// its content size and scroll to reveal a window that doesn't fully fit, instead of the
+    /// window being clamped to always stay fully inside the visible viewport. Only meaningful when
+    /// the container is actually scrollable; leave this `false` (the default) for containers like
+    /// `Frame` or a resizable panel that can't scroll.
+    pub fn scrollable(mut self, scrollable: bool) -> Self {
+        self.scrollable = scrollable;
+        self
     }
 
     pub fn windows<F>(self, ui: &mut Ui, mut collect_windows: F) -> HashMap<Id, Vec<ToolWindowAction>>
@@ -777,7 +845,20 @@ impl ToolWindows {
             .map(|(id, params)| (id, params))
             .collect();
 
+        // The container's content-space origin - i.e. its top-left corner, not wherever the
+        // cursor happens to be after any content already drawn in `ui` before this call. Windows
+        // float on top of that content and use the entire container, so they must not be pushed
+        // down/right by it. `max_rect().min` stays fixed regardless of what's drawn afterwards
+        // (including the windows themselves, which - unlike ordinary widgets - only ever grow
+        // `max_rect` outward from this corner), and, inside a `ScrollArea`, moves with the scroll
+        // offset, which is what lets windows scroll together with the rest of the content.
+        let content_origin = ui.max_rect().min;
+
         let mut actions: HashMap<Id, Vec<ToolWindowAction>> = HashMap::new();
+        // Every window's extent and drag status this frame, gathered so they can be aggregated
+        // into a single reported extent once every window has been processed - see
+        // `ToolWindowsState::sticky_content_extent` for why this can't be done per-window.
+        let mut window_results: Vec<(Rect, bool)> = Vec::new();
         // Render windows in the stored order
         let rendering_order = state_persistence
             .state
@@ -790,12 +871,50 @@ impl ToolWindows {
                 let ctx = ui.ctx().clone();
                 let mut tool_window = ToolWindow::load_or_create_from_params(&ctx, id, &params);
                 ui.push_id(id.with("__tool_window"), |ui| {
-                    let window_actions = tool_window.show(ui, params, &mut state_persistence.state);
-                    if !window_actions.is_empty() {
-                        actions.insert(id, window_actions);
-                    };
+                    let result = tool_window.show(
+                        ui,
+                        params,
+                        &mut state_persistence.state,
+                        self.scrollable,
+                        content_origin,
+                    );
+                    if !result.actions.is_empty() {
+                        actions.insert(id, result.actions);
+                    }
+                    if self.scrollable {
+                        window_results.push((result.content_space_rect, result.dragging));
+                    }
                 });
                 tool_window.store(&ctx);
+            }
+        }
+
+        if self.scrollable {
+            let any_dragging = window_results
+                .iter()
+                .any(|(_, dragging)| *dragging);
+            let natural_extent = window_results
+                .into_iter()
+                .map(|(rect, _)| rect)
+                .reduce(Rect::union);
+
+            // While dragging, union with whatever extent was reported last frame so it can only
+            // grow; once nothing is dragging, drop straight back to the natural extent.
+            let reported_extent = if any_dragging {
+                let merged = match (state_persistence.state.sticky_content_extent, natural_extent) {
+                    (Some(sticky), Some(natural)) => Some(sticky.union(natural)),
+                    (Some(sticky), None) => Some(sticky),
+                    (None, natural) => natural,
+                };
+                state_persistence.state.sticky_content_extent = merged;
+                merged
+            } else {
+                state_persistence.state.sticky_content_extent = None;
+                natural_extent
+            };
+
+            if let Some(extent) = reported_extent {
+                ui.advance_cursor_after_rect(extent.translate(content_origin.to_vec2()));
             }
         }
 
