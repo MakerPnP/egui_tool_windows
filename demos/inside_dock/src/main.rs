@@ -16,7 +16,7 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
     eframe::run_native(
-        "Document System using egui_dock with egui_tool_windows",
+        "Inside_dock demo - using egui_tool_windows inside egui_dock tabs/windows",
         native_options,
         Box::new(|_cc| Ok(Box::new(MyApp::default()))),
     )
@@ -35,6 +35,7 @@ enum TabKind {
     ToolWindows {
         state: Arc<Mutex<ExampleWindowState>>,
         salt: &'static str,
+        scrollable: bool,
     },
 }
 
@@ -46,10 +47,11 @@ struct MyApp {
 impl Default for MyApp {
     fn default() -> Self {
         let mut tree = DockState::new(vec![Tab {
-            name: "Tool windows in a tab",
+            name: "Scrollable tool windows in a tab",
             kind: TabKind::ToolWindows {
                 state: Arc::new(Mutex::new(ExampleWindowState::default())),
                 salt: "tab 1",
+                scrollable: true,
             },
         }]);
 
@@ -74,6 +76,7 @@ impl Default for MyApp {
                 kind: TabKind::ToolWindows {
                     state: Arc::new(Mutex::new(ExampleWindowState::default())),
                     salt: "tab 4",
+                    scrollable: false,
                 },
             },
             Tab {
@@ -104,11 +107,14 @@ impl TabKind {
             TabKind::ToolWindows {
                 state,
                 salt,
+                scrollable,
             } => {
                 egui::ScrollArea::both()
                     .auto_shrink([false, false])
                     .scroll_bar_visibility(ScrollBarVisibility::AlwaysVisible)
                     .show(ui, |ui| {
+                        ui.checkbox(scrollable, "Scrollable mode");
+
                         // using a block to make sure the state guard is dropped
                         {
                             let mut example_state = state.lock().unwrap();
@@ -116,7 +122,9 @@ impl TabKind {
                         }
 
                         shared::draw_table(ui, "table_2");
-                        ToolWindows::new().windows(ui, |builder| {
+                        ToolWindows::new()
+                            .scrollable(*scrollable)
+                            .windows(ui, |builder| {
                             builder
                                 .add_window(Id::new("table_tool_window_1").with(*salt))
                                 .default_pos([50.0, 50.0])
@@ -169,13 +177,12 @@ impl eframe::App for MyApp {
 
         egui::Panel::top("top_panel").show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.label("Document System");
                 ui.checkbox(&mut self.inspection, "🔍 Inspection");
             });
         });
 
         let response = CentralPanel::default().show(ui, |ui| {
-            ui.label("Example document system!");
+            ui.label("Example tool windows with egui_dock!");
 
             DockArea::new(&mut self.tree)
                 .style(Style::from_egui(ui.style().as_ref()))
