@@ -73,6 +73,7 @@ impl eframe::App for MyApp {
                                         .default_pos([50.0, 50.0])
                                         .default_size([400.0, 300.0])
                                         .show("Example table 1 (drag or collapse me)".to_string(), |ui| {
+                                            ui.set_min_height(50.0);
                                             shared::draw_table(ui, "table_1");
                                         });
 
@@ -92,6 +93,8 @@ impl eframe::App for MyApp {
                                                     let example_state_arc = self.example_state.clone();
 
                                                     move |ui| {
+                                                        ui.set_min_height(50.0);
+
                                                         let mut example_state = example_state_arc.lock().unwrap();
                                                         shared::draw_example_window_contents_1(ui, &mut example_state);
                                                     }

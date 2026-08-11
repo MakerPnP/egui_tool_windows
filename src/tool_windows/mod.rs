@@ -46,7 +46,11 @@ impl ToolWindow {
         let position_margin = 16.0;
 
         let resize_corner_size = ui.visuals().resize_corner_size;
-        let min_size = vec2(100.0, title_bar_height);
+        let baseline_min_size = vec2(100.0, title_bar_height);
+
+        // The content is only rendered (and therefore only measurable) when expanded and when a
+        // content closure was actually supplied.
+        let can_measure_content = !self.state.collapsed && params.content_fn.is_some();
 
         let ui_clip_rect = ui.clip_rect();
         debug_rect(ui, ui_clip_rect, Color32::BLUE);
@@ -58,20 +62,22 @@ impl ToolWindow {
 
         Self::clamp_offset(available, &mut self.state.position);
 
-        let mut resize_delta = vec2(0.0, 0.0);
-
         let top_left = ui_clip_rect.min + self.state.position.to_vec2();
-        let mut actual_size = if self.state.collapsed {
-            vec2(self.state.size.x, title_bar_height)
-        } else {
-            self.state.size
-        };
 
         let border_adjust_splat = (inner_margin + outer_margin) * 2;
         let border_adjust = Vec2::splat(border_adjust_splat as f32);
-        actual_size += border_adjust;
 
-        let rect = Rect::from_min_size(top_left, actual_size);
+        // Builds the outer window rect for a given (uncollapsed) content size.
+        let rect_for_size = |size: Vec2| {
+            let actual_size = if self.state.collapsed {
+                vec2(size.x, title_bar_height)
+            } else {
+                size
+            } + border_adjust;
+            Rect::from_min_size(top_left, actual_size)
+        };
+
+        let rect = rect_for_size(self.state.size);
         debug_rect(ui, rect, Color32::BLUE);
 
         let corner_radius = CornerRadius::same(6);
@@ -102,6 +108,15 @@ impl ToolWindow {
             );
             state.bring_to_front(self.id);
         }
+
+        let mut left_dragging = false;
+        let mut right_dragging = false;
+        let mut top_dragging = false;
+        let mut bottom_dragging = false;
+
+        // Whichever edge/corner just started being dragged this frame, captured so we can seed
+        // `resize_drag_state` below with a pivot taken at the moment the drag began.
+        let mut drag_started: Option<(bool, bool, bool, bool, Pos2)> = None;
 
         let corner_response = {
             let edges = [
@@ -140,17 +155,24 @@ impl ToolWindow {
 
                 if resp.dragged() {
                     match edge {
-                        "left" => {
-                            resize_delta.x -= resp.drag_delta().x;
-                            self.state.position.x += resp.drag_delta().x;
-                        }
-                        "right" => resize_delta.x += resp.drag_delta().x,
-                        "top" => {
-                            resize_delta.y -= resp.drag_delta().y;
-                            self.state.position.y += resp.drag_delta().y;
-                        }
-                        "bottom" => resize_delta.y += resp.drag_delta().y,
+                        "left" => left_dragging = true,
+                        "right" => right_dragging = true,
+                        "top" => top_dragging = true,
+                        "bottom" => bottom_dragging = true,
                         _ => {}
+                    }
+                }
+
+                if resp.drag_started() {
+                    if let Some(pointer) = resp.interact_pointer_pos() {
+                        let (left, right, top, bottom) = match edge {
+                            "left" => (true, false, false, false),
+                            "right" => (false, true, false, false),
+                            "top" => (false, false, true, false),
+                            "bottom" => (false, false, false, true),
+                            _ => (false, false, false, false),
+                        };
+                        drag_started = Some((left, right, top, bottom, pointer));
                     }
                 }
             }
@@ -179,22 +201,125 @@ impl ToolWindow {
                 }
 
                 if corner_response.dragged() {
-                    resize_delta += corner_response.drag_delta();
+                    right_dragging = true;
+                    bottom_dragging = true;
+                }
+
+                if corner_response.drag_started() {
+                    if let Some(pointer) = corner_response.interact_pointer_pos() {
+                        drag_started = Some((false, true, false, true, pointer));
+                    }
                 }
             }
 
-            if resize_delta != Vec2::ZERO {
-                self.state.size += resize_delta;
-                self.state.size.x = self.state.size.x.max(min_size.x);
-                self.state.size.y = self.state.size.y.max(min_size.y);
-            }
-
-            trace!(
-                "position: {:?}, size: {:?}, resize_delta: {:?}",
-                self.state.position, self.state.size, resize_delta
-            );
-
             corner_response
+        };
+
+        let dragging_x = left_dragging || right_dragging;
+        let dragging_y = top_dragging || bottom_dragging;
+        let is_actively_resizing = dragging_x || dragging_y;
+
+        if let Some((left, right, top, bottom, drag_pivot)) = drag_started {
+            // While collapsed there's no content on screen to resize, so height must not change
+            // - mask out `top`/`bottom` regardless of which handle was actually grabbed, which
+            // leaves `size.y`/`position.y` untouched below for the rest of this drag.
+            let (top, bottom) = if self.state.collapsed {
+                (false, false)
+            } else {
+                (top, bottom)
+            };
+            self.state.resize_drag_state = Some(ResizeDragState {
+                left,
+                right,
+                top,
+                bottom,
+                drag_pivot,
+                initial_size: self.state.size,
+                initial_position: self.state.position,
+            });
+        }
+
+        // `content_min_size` is deliberately left alone here: it's the best-known minimum and
+        // stays valid (if possibly stale) across drags, which matters while collapsed (see
+        // `can_measure_content` above). Only the per-drag anchor and measurement flag reset,
+        // so the *next* drag starts from a fresh pivot and re-measures once.
+        if !is_actively_resizing {
+            self.state.measured_for_current_drag = false;
+            self.state.resize_drag_state = None;
+        }
+
+        // The first frame of a drag doesn't yet know the content's true minimum size, so it runs
+        // a "sizing pass": render the content into a squished probe rect (offering only the
+        // dragged axes at `baseline_min_size`) to discover what it actually needs, discard that
+        // invisible probe frame, and let egui immediately redo the frame - by which point
+        // `content_min_size` is up to date and the real drag can be clamped against it.
+        //
+        // While collapsed the content isn't rendered, so it can't be measured this way;
+        // `min_size` then falls back to whatever `content_min_size` was last measured as (or
+        // just the baseline, if it's never been measured).
+        let needs_sizing_pass = can_measure_content && is_actively_resizing && !self.state.measured_for_current_drag;
+
+        let min_size = baseline_min_size.max(self.state.content_min_size);
+
+        // Resize by re-deriving the desired size/position each frame from the pointer's total
+        // displacement since the drag started (`pointer - drag_pivot`) relative to
+        // `initial_size`/`initial_position`, rather than from a per-frame delta. Because the
+        // computation always starts fresh from the fixed pivot, once a min-size clamp holds the
+        // size steady, the window resumes growing exactly when the pointer's displacement from
+        // the pivot crosses back past the point where the clamp took effect.
+        if !needs_sizing_pass {
+            if let Some(drag) = self.state.resize_drag_state {
+                if let Some(pointer) = ctx.input(|i| i.pointer.interact_pos()) {
+                    let delta = pointer - drag.drag_pivot;
+
+                    let mut size = drag.initial_size;
+                    let mut position = drag.initial_position;
+
+                    if drag.right {
+                        size.x = (drag.initial_size.x + delta.x).max(min_size.x);
+                    } else if drag.left {
+                        size.x = (drag.initial_size.x - delta.x).max(min_size.x);
+                        position.x = drag.initial_position.x + drag.initial_size.x - size.x;
+                    }
+
+                    if drag.bottom {
+                        size.y = (drag.initial_size.y + delta.y).max(min_size.y);
+                    } else if drag.top {
+                        size.y = (drag.initial_size.y - delta.y).max(min_size.y);
+                        position.y = drag.initial_position.y + drag.initial_size.y - size.y;
+                    }
+
+                    self.state.size = size;
+                    self.state.position = position;
+                }
+            }
+        }
+
+        trace!(
+            "position: {:?}, size: {:?}, needs_sizing_pass: {:?}",
+            self.state.position, self.state.size, needs_sizing_pass
+        );
+
+        // What the content is actually offered this frame: the real rect, unless we're running
+        // the throwaway sizing pass above, in which case the dragged axes are squished down to
+        // `baseline_min_size` to force content to reveal its true minimum instead of padding out
+        // to fill whatever's currently available.
+        let content_rect = if needs_sizing_pass {
+            let probe_size = vec2(
+                if dragging_x {
+                    baseline_min_size.x
+                } else {
+                    self.state.size.x
+                },
+                if dragging_y {
+                    baseline_min_size.y
+                } else {
+                    self.state.size.y
+                },
+            );
+            rect_for_size(probe_size)
+        } else {
+            rect
         };
 
         //
@@ -221,11 +346,10 @@ impl ToolWindow {
             window_id,
             UiBuilder::new()
                 .layer_id(layer_id)
-                .max_rect(rect)
+                .max_rect(content_rect)
                 .layout(Layout::top_down(Align::Min)),
         );
-        window_ui.set_clip_rect(rect.intersect(ui_clip_rect));
-        window_ui.set_min_size(rect.size());
+        window_ui.set_clip_rect(content_rect.intersect(ui_clip_rect));
 
         let window_clip_rect = window_ui.clip_rect();
         debug_rect(ui, window_clip_rect, Color32::YELLOW);
@@ -355,6 +479,17 @@ impl ToolWindow {
                     content_fn(ui);
                 }
 
+                if needs_sizing_pass {
+                    // Discover the content's true minimum size (including any
+                    // `set_min_height`/`set_min_width` reservations it made) from the squished
+                    // probe render above, so the rest of this drag (and any future collapsed
+                    // drag, until the next measurement) can be clamped against it.
+                    let measured = (ui.min_rect().size() - border_adjust).max(Vec2::ZERO);
+                    self.state.content_min_size = measured.max(baseline_min_size);
+                    self.state.measured_for_current_drag = true;
+                    ctx.request_discard("egui_tool_windows: measuring content min size for resize clamp");
+                }
+
                 if let Some(corner_response) = corner_response {
                     stolen::paint_resize_corner(ui, &corner_response);
                 }
@@ -378,6 +513,24 @@ struct DragState {
     initial_drag_position: Pos2,
 }
 
+/// Captured once when a resize drag starts (on whichever edge/corner the pointer grabbed) and
+/// kept for the duration of that drag. `left`/`right`/`top`/`bottom` mark which edge(s) of
+/// `initial_size`/`initial_position` the current drag moves; `size`/`position` for the drag are
+/// then recomputed each frame from the pointer's total displacement since the drag started
+/// (`pointer_pos - drag_pivot`) applied to those initial values, rather than from a per-frame
+/// delta.
+#[derive(Clone, Copy)]
+#[cfg_attr(feature = "persistence", derive(serde::Serialize, serde::Deserialize))]
+struct ResizeDragState {
+    left: bool,
+    right: bool,
+    top: bool,
+    bottom: bool,
+    drag_pivot: Pos2,
+    initial_size: Vec2,
+    initial_position: Pos2,
+}
+
 #[derive(Clone)]
 #[cfg_attr(feature = "persistence", derive(serde::Serialize, serde::Deserialize))]
 struct ToolWindowState {
@@ -389,6 +542,25 @@ struct ToolWindowState {
 
     /// If false, we are no enabled
     resizable: Vec2b,
+
+    /// The best-known minimum size the content needs, as measured by a one-off "sizing pass"
+    /// (see `show`) the last time the window was resized while expanded. Stays set once that
+    /// drag ends, so it can still clamp a resize started while collapsed, when the content
+    /// isn't being rendered and so can't be re-measured - though it will be stale if the
+    /// content's requirements changed since it was last measured. Not persisted to disk: starts
+    /// at `Vec2::ZERO` (no minimum enforced beyond the baseline) each time the app launches.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    content_min_size: Vec2,
+
+    /// Whether `content_min_size` has already been (re-)measured for the resize drag currently
+    /// in progress. `false` whenever no drag is in progress, so the next drag triggers exactly
+    /// one fresh measurement. Not persisted to disk.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    measured_for_current_drag: bool,
+
+    /// `None` unless a resize drag is currently in progress. Not persisted to disk.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    resize_drag_state: Option<ResizeDragState>,
 }
 
 impl Default for ToolWindowState {
@@ -399,6 +571,9 @@ impl Default for ToolWindowState {
             position: Pos2::ZERO,
             size: vec2(300.0, 200.0),
             drag_state: None,
+            content_min_size: Vec2::ZERO,
+            measured_for_current_drag: false,
+            resize_drag_state: None,
         }
     }
 }
