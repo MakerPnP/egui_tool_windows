@@ -11,6 +11,8 @@
 - Tool windows return actions which should be processed, e.g. `ToolWindowAction::CloseRequested`.
 - `Simple` demo updated to show how to use the `closable` and `titlebar_content` features.
 - Long window titles now show ellipsis if they are too long to fit.
+- Add support for a 'scrollable' mode (disabled by default).
+- Add easing when dragging/resizing windows in a scroll area. 
 
 ## 0.5.0
 

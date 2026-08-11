@@ -3,9 +3,10 @@ use std::fmt::Debug;
 use std::hash::Hash;
 
 use egui::collapsing_header::CollapsingState;
+use egui::emath::easing;
 use egui::{
-    Align, Color32, Context, CornerRadius, CursorIcon, Frame, Id, Layout, Pos2, Rect, Sense, Stroke, Style, Ui,
-    UiBuilder, Vec2, Vec2b, vec2,
+    Align, Color32, Context, CornerRadius, CursorIcon, Frame, Id, Layout, Pos2, Rect, Sense, Style, Ui, UiBuilder,
+    Vec2, Vec2b, vec2,
 };
 use log::trace;
 
@@ -726,6 +727,23 @@ pub struct ToolWindowsState {
     /// position, no matter how far the pointer moves, until the offset bottomed out at zero.
     #[cfg_attr(feature = "persistence", serde(skip))]
     sticky_content_extent: Option<Rect>,
+
+    /// An in-progress ease from `sticky_content_extent`'s last value down to the natural extent,
+    /// started the moment a drag/resize ends (see `sticky_content_extent`) if that leaves the
+    /// container smaller than it was. `None` outside of that transition, in which case the
+    /// natural extent is reported directly.
+    #[cfg_attr(feature = "persistence", serde(skip))]
+    settling_extent: Option<SettlingExtent>,
+}
+
+/// How long `ToolWindowsState::settling_extent` takes to ease down to the natural extent.
+const CONTENT_EXTENT_SETTLE_DURATION: f32 = 0.2;
+
+#[derive(Clone, Copy)]
+struct SettlingExtent {
+    from: Rect,
+    to: Rect,
+    start_time: f64,
 }
 
 impl ToolWindowsState {
@@ -899,7 +917,8 @@ impl ToolWindows {
                 .reduce(Rect::union);
 
             // While dragging, union with whatever extent was reported last frame so it can only
-            // grow; once nothing is dragging, drop straight back to the natural extent.
+            // grow; once nothing is dragging, drop straight back to the natural extent - eased,
+            // rather than snapped to, if a drag/resize just ended (see `settling_extent`).
             let reported_extent = if any_dragging {
                 let merged = match (state_persistence.state.sticky_content_extent, natural_extent) {
                     (Some(sticky), Some(natural)) => Some(sticky.union(natural)),
@@ -907,10 +926,46 @@ impl ToolWindows {
                     (None, natural) => natural,
                 };
                 state_persistence.state.sticky_content_extent = merged;
+                state_persistence.state.settling_extent = None;
                 merged
             } else {
-                state_persistence.state.sticky_content_extent = None;
-                natural_extent
+                if let Some(frozen) = state_persistence.state.sticky_content_extent.take() {
+                    if natural_extent != Some(frozen) {
+                        state_persistence.state.settling_extent = Some(SettlingExtent {
+                            from: frozen,
+                            to: natural_extent.unwrap_or(frozen),
+                            start_time: ui.ctx().input(|i| i.time),
+                        });
+                    }
+                }
+
+                if let Some(mut settling) = state_persistence.state.settling_extent {
+                    // Keep tracking the natural extent in case it changes while settling (e.g. a
+                    // window is closed), so this eases towards the latest target rather than a
+                    // stale one.
+                    if let Some(natural_extent) = natural_extent {
+                        settling.to = natural_extent;
+                    }
+
+                    let now = ui.ctx().input(|i| i.time);
+                    let t = ((now - settling.start_time) / CONTENT_EXTENT_SETTLE_DURATION as f64).clamp(0.0, 1.0)
+                        as f32;
+
+                    if t >= 1.0 {
+                        state_persistence.state.settling_extent = None;
+                        Some(settling.to)
+                    } else {
+                        state_persistence.state.settling_extent = Some(settling);
+                        ui.ctx().request_repaint();
+                        Some(
+                            settling
+                                .from
+                                .lerp_towards(&settling.to, easing::cubic_out(t)),
+                        )
+                    }
+                } else {
+                    natural_extent
+                }
             };
 
             if let Some(extent) = reported_extent {
