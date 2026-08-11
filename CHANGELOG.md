@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0
+
+- Add support for egui 0.36.0.
+
 ## 0.6.0
 - Fix interactivity issues.  Now there is no bleed-though of hover and drag events to
   widgets that appear beneath the tool window.

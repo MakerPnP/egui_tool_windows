@@ -160,6 +160,10 @@ struct TabViewer {}
 impl egui_dock::TabViewer for TabViewer {
     type Tab = Tab;
 
+    fn id(&mut self, tab: &mut Self::Tab) -> Id {
+        Id::new(self.title(tab).text())
+    }
+
     fn title(&mut self, tab: &mut Self::Tab) -> WidgetText {
         (&*tab.name).into()
     }
