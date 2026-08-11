@@ -24,7 +24,7 @@ pub fn draw_example_window_contents_1(ui: &mut Ui, state: &mut ExampleWindowStat
         let style = ui.style_mut();
         style.wrap_mode = Some(egui::TextWrapMode::Wrap);
 
-        ui.label("This content is wrapped and clipped.");
+        ui.label("This bit of content is using the wrapping text layout mode.");
     }
 
     if ui
