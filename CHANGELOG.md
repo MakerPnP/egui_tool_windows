@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.1
+## 0.6.0
 - Fix interactivity issues.  Now there is no bleed-though of hover and drag events to
   widgets that appear beneath the tool window.
 - Allow resizing of tool windows without having to bring them to the front first.
